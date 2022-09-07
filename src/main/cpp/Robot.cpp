@@ -6,11 +6,21 @@
 
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <frc2/command/CommandScheduler.h>
+#include <frc/Solenoid.h>
+#include <frc/DoubleSolenoid.h>
+#include <frc/PneumaticsBase.h>
+#include <frc/PneumaticHub.h>
 
+#include <thread>
+#include <chrono>
 #include <iostream>
 
+using namespace std;
+
+// Period every 1000ms for testing
+Robot::Robot() : frc::TimedRobot(1000_ms) {}
+
 void Robot::RobotInit() {
-  std::cout << "Initialized!\n";
 }
 
 /**
@@ -67,7 +77,24 @@ void Robot::TeleopPeriodic() {}
 /**
  * This function is called periodically during test mode.
  */
-void Robot::TestPeriodic() {}
+void Robot::TestPeriodic() {
+  // Cycle between forward/reverse for testing piston (every period or 1000ms)
+  if (m_pistonForward) {
+    m_solenoid->Set(frc::DoubleSolenoid::Value::kForward);
+  } else {
+    m_solenoid->Set(frc::DoubleSolenoid::Value::kReverse);
+  }
+  m_pistonForward = !m_pistonForward;
+}
+
+void Robot::TestInit() {
+  std::cout << "Starting test!\n";
+
+  m_solenoid = new frc::DoubleSolenoid{frc::PneumaticsModuleType::CTREPCM, 0, 1};
+  m_pistonForward = true;
+  
+  std::cout << "Initialized!\n";
+}
 
 #ifndef RUNNING_FRC_TESTS
 int main() {
