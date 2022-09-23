@@ -10,10 +10,15 @@
 #include <frc/DoubleSolenoid.h>
 #include <frc/PneumaticsBase.h>
 #include <frc/PneumaticHub.h>
+#include <frc/I2C.h>
+#include <frc/XboxController.h>
+#include <rev/CANSparkMax.h>
 
 #include <thread>
 #include <chrono>
 #include <iostream>
+#include <bitset>
+#include <cmath>
 
 using namespace std;
 
@@ -59,6 +64,13 @@ void Robot::AutonomousInit() {
 void Robot::AutonomousPeriodic() {}
 
 void Robot::TeleopInit() {
+  // TODO: Update firmware and put device IDs in Constants.h + move to Drivetrain
+  m_leftMotor = new rev::CANSparkMax(0, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
+  m_rightMotor = new rev::CANSparkMax(1, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
+
+  m_controller = new frc::XboxController(0); // Should be in Constants.h
+
+
   // This makes sure that the autonomous stops running when
   // teleop starts running. If you want the autonomous to
   // continue until interrupted by another command, remove
@@ -72,28 +84,31 @@ void Robot::TeleopInit() {
 /**
  * This function is called periodically during operator control.
  */
-void Robot::TeleopPeriodic() {}
+void Robot::TeleopPeriodic() {
+  // TODO: Figure out actual controller scheme
+  m_leftMotor->Set(pow(m_controller->GetLeftTriggerAxis(), 2.0));
+  m_rightMotor->Set(pow(m_controller->GetRightTriggerAxis(), 2.0));
+}
 
 /**
  * This function is called periodically during test mode.
  */
 void Robot::TestPeriodic() {
-  // Cycle between forward/reverse for testing piston (every period or 1000ms)
-  if (m_pistonForward) {
-    m_solenoid->Set(frc::DoubleSolenoid::Value::kForward);
-  } else {
-    m_solenoid->Set(frc::DoubleSolenoid::Value::kReverse);
-  }
-  m_pistonForward = !m_pistonForward;
+  // if (m_solenoid != nullptr) {
+  //   // Cycle between forward/reverse for testing piston (every period or 1000ms)
+  //   if (m_pistonForward) {
+  //     cout << "Driving forward: ";
+  //     m_solenoid->Set(frc::DoubleSolenoid::Value::kForward);
+  //   } else {
+  //     cout << "Driving reverse: ";
+  //     m_solenoid->Set(frc::DoubleSolenoid::Value::kReverse);
+  //   }
+  //   cout << "Solenoid: " << m_solenoid->Get() << '\n';
+  //   m_pistonForward = !m_pistonForward;
+  // }
 }
 
 void Robot::TestInit() {
-  std::cout << "Starting test!\n";
-
-  m_solenoid = new frc::DoubleSolenoid{frc::PneumaticsModuleType::CTREPCM, 0, 1};
-  m_pistonForward = true;
-  
-  std::cout << "Initialized!\n";
 }
 
 #ifndef RUNNING_FRC_TESTS
