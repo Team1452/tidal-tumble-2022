@@ -13,3 +13,8 @@
  * command-specific namespaces within this header, which can then be used where
  * they are needed.
  */
+
+namespace Drivetrain {
+    constexpr int RIGHT_MOTOR = 6;
+    constexpr int LEFT_MOTOR = 7;
+}

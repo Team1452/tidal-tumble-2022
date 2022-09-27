@@ -3,6 +3,7 @@
 // the WPILib BSD license file in the root directory of this project.
 
 #include "Robot.h"
+#include "Constants.h"
 
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <frc2/command/CommandScheduler.h>
@@ -23,7 +24,7 @@
 using namespace std;
 
 // Period every 1000ms for testing
-Robot::Robot() : frc::TimedRobot(1000_ms) {}
+Robot::Robot() : frc::TimedRobot(20_ms) {}
 
 void Robot::RobotInit() {
 }
@@ -65,9 +66,10 @@ void Robot::AutonomousPeriodic() {}
 
 void Robot::TeleopInit() {
   // TODO: Update firmware and put device IDs in Constants.h + move to Drivetrain
-  m_leftMotor = new rev::CANSparkMax(0, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
-  m_rightMotor = new rev::CANSparkMax(1, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
-
+  m_leftMotor = new rev::CANSparkMax(Drivetrain::LEFT_MOTOR, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
+  m_rightMotor = new rev::CANSparkMax(Drivetrain::RIGHT_MOTOR, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
+  m_leftMotor->SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
+  m_rightMotor->SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
   m_controller = new frc::XboxController(0); // Should be in Constants.h
 
 
@@ -86,10 +88,22 @@ void Robot::TeleopInit() {
  */
 void Robot::TeleopPeriodic() {
   // TODO: Figure out actual controller scheme
-  m_leftMotor->Set(pow(m_controller->GetLeftTriggerAxis(), 2.0));
-  m_rightMotor->Set(pow(m_controller->GetRightTriggerAxis(), 2.0));
-}
+  cout << m_controller->GetLeftY() << ", " << m_controller->GetLeftX() << endl;
+  double threshold = 0.01;
+  double speed = pow((m_controller->GetLeftY() - threshold) * 1/(1-threshold), 3.0);
+  double turn = pow((m_controller->GetLeftX() - threshold) * 1/(1-threshold), 3.0);
 
+  cout << "speed: " << speed << ", turn: " << turn << endl;
+  m_leftMotor->Set(-speed + turn);
+  m_rightMotor->Set(speed + turn);
+}
+/*
+void Robot::TeleopExit() {
+  delete m_leftMotor;
+  delete m_rightMotor;
+  delete m_controller;
+}
+*/
 /**
  * This function is called periodically during test mode.
  */

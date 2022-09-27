@@ -23,6 +23,7 @@ class Robot : public frc::TimedRobot {
   void AutonomousPeriodic() override;
   void TeleopInit() override;
   void TeleopPeriodic() override;
+  //void TeleopExit() override;
   void TestPeriodic() override;
   void TestInit() override;
 
@@ -33,12 +34,11 @@ class Robot : public frc::TimedRobot {
   frc::DoubleSolenoid* m_solenoid = nullptr;
   bool m_pistonForward = false;
 
-
   // TODO: Move to Drivetrain
-  rev::CANSparkMax* m_leftMotor = nullptr;
-  rev::CANSparkMax* m_rightMotor = nullptr;
-
-  frc::XboxController* m_controller = nullptr;
+  rev::CANSparkMax* m_leftMotor;
+  rev::CANSparkMax* m_rightMotor;
+  
+  frc::XboxController* m_controller;
 
   RobotContainer m_container;
 };
