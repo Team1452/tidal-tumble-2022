@@ -9,6 +9,8 @@
 #include <frc2/command/Command.h>
 #include <frc/XboxController.h>
 #include <rev/CANSparkMax.h>
+#include <networktables/NetworkTable.h>
+#include <ctre/phoenix/sensors/Pigeon2.h>
 
 #include "RobotContainer.h"
 
@@ -34,11 +36,18 @@ class Robot : public frc::TimedRobot {
   frc::DoubleSolenoid* m_solenoid = nullptr;
   bool m_pistonForward = false;
 
+  double m_targetDeltaX = 0;
+  double m_lastOffsetAngleHorizontal = 0;
+
   // TODO: Move to Drivetrain
-  rev::CANSparkMax* m_leftMotor;
-  rev::CANSparkMax* m_rightMotor;
-  
-  frc::XboxController* m_controller;
+  rev::CANSparkMax *m_leftMotor;
+  rev::CANSparkMax *m_rightMotor;
+
+  frc::XboxController *m_controller;
+
+  std::shared_ptr<nt::NetworkTable> m_table;
+
+  ctre::phoenix::sensors::Pigeon2 *m_pigeon2;
 
   RobotContainer m_container;
 };

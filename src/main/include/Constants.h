@@ -14,7 +14,9 @@
  * they are needed.
  */
 
-namespace Drivetrain {
-    constexpr int RIGHT_MOTOR = 6;
-    constexpr int LEFT_MOTOR = 7;
+namespace Constants {
+    namespace Drivetrain {
+        constexpr int RIGHT_MOTOR = 6;
+        constexpr int LEFT_MOTOR = 7;
+    }
 }
