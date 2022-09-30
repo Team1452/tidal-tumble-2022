@@ -15,8 +15,22 @@
  */
 
 namespace Constants {
-    namespace Drivetrain {
-        constexpr int RIGHT_MOTOR = 6;
-        constexpr int LEFT_MOTOR = 7;
+    namespace Test {
+        namespace Drivetrain {
+            constexpr int RIGHT_MOTOR = 6;
+            constexpr int LEFT_MOTOR = 7;
+        }
+    }
+
+    namespace Real {
+        namespace Drivetrain {
+            constexpr int RIGHT_MOTOR_1 = 1;
+            constexpr int RIGHT_MOTOR_2 = 2;
+            constexpr int LEFT_MOTOR_1 = 15;
+            constexpr int LEFT_MOTOR_2 = 6;
+        }
+
+        constexpr int INTAKE = 14;
+        constexpr int CLIMB = 7;
     }
 }

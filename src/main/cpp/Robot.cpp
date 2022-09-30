@@ -30,46 +30,11 @@
 
 using namespace std;
 
-class Drivetrain {
-public:
-  Drivetrain *GetDefault() {
-    if (m_instance == nullptr) {
-      m_instance = new Drivetrain(); 
-    }
-    return m_instance;
-  }
-
-  void DriveLeft(double speed) {
-    m_leftMotor->Set(speed);
-  }
-
-  void DriveRight(double speed) {
-    m_rightMotor->Set(speed);
-  }
-
-private:
-  Drivetrain() {
-    m_leftMotor = new rev::CANSparkMax(Constants::Drivetrain::LEFT_MOTOR, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
-    m_rightMotor = new rev::CANSparkMax(Constants::Drivetrain::RIGHT_MOTOR, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
-
-    m_leftMotor->SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
-    m_rightMotor->SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
-
-    m_controller = new frc::XboxController(0);
-  }
-
-  static Drivetrain *m_instance;
-
-  rev::CANSparkMax *m_leftMotor;
-  rev::CANSparkMax *m_rightMotor;
-  frc::XboxController *m_controller;
-};
-
 Robot::Robot() : frc::TimedRobot(20_ms) {
   m_table = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
 
-  m_leftMotor = new rev::CANSparkMax(Constants::Drivetrain::LEFT_MOTOR, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
-  m_rightMotor = new rev::CANSparkMax(Constants::Drivetrain::RIGHT_MOTOR, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
+  m_leftMotor = new rev::CANSparkMax(Constants::Test::Drivetrain::LEFT_MOTOR, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
+  m_rightMotor = new rev::CANSparkMax(Constants::Test::Drivetrain::RIGHT_MOTOR, rev::CANSparkMaxLowLevel::MotorType::kBrushless);
 
   m_leftMotor->SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
   m_rightMotor->SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
@@ -182,8 +147,8 @@ void Robot::TestPeriodic() {
     targetAngle = m_lastOffsetAngleHorizontal;
   }
 
-  double turn = clamp(targetAngle / 100, -0.1, 0.1);
-  turn = abs(turn) > 0.05 ? turn : 0;
+  double turn = clamp(targetAngle / 50, -0.1, 0.1);
+  // turn = abs(turn) > 0.06 ? turn : 0;
 
   m_leftMotor->Set(turn);
   m_rightMotor->Set(turn);
@@ -202,7 +167,6 @@ void Robot::TestPeriodic() {
 }
 
 void Robot::TestInit() {
-
   // auto entries = nt::NetworkTableInstance::GetDefault().GetEntries("", 0);
   // for (auto entry : entries) {
   //   cout << entry.GetName() << "; type: " << (int)entry.GetType() << endl;
