@@ -18,4 +18,6 @@ class Vec2(val x: Double, val y: Double) {
     fun dot(o: Vec2): Double = x * o.x + y * o.y
     fun norm(): Double = sqrt(x.pow(2.0) + y.pow(2.0))
     fun hat(): Vec2 = this/norm()
+    fun rotate(rad: Double): Vec2 = Vec2(cos(rad) * x - sin(rad) * y, sin(rad) * x + cos(rad) * y)
+    fun rotateDeg(deg: Double): Vec2 = rotate(deg * PI/180.0)
 }

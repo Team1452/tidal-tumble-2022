@@ -4,17 +4,18 @@
 
 package frc.robot
 
+import kotlin.math.*
+
 import edu.wpi.first.wpilibj.TimedRobot
 import edu.wpi.first.wpilibj.XboxController
 import edu.wpi.first.wpilibj.drive.Vector2d
 import edu.wpi.first.networktables.NetworkTableInstance
-
-import robot.Drivetrain
-import kotlin.math.*
-import com.ctre.phoenix.sensors.Pigeon2
-import io.javalin.Javalin
 import io.javalin.websocket.WsContext
 import java.util.concurrent.ConcurrentHashMap
+import com.ctre.phoenix.sensors.Pigeon2
+import io.javalin.Javalin
+
+import robot.Drivetrain
 
 class Robot : TimedRobot() {
     companion object {
@@ -74,7 +75,7 @@ class Robot : TimedRobot() {
         val tv = limelightTable.getEntry("tv").getDouble(0.0)
         val tx = limelightTable.getEntry("tx").getDouble(0.0)
 
-        val turn = tv * (tx / 29.8 * 0.5).apply { if (this > 0.05) this else 0.0 }
+        val turn = tv * (tx / 29.8 * 0.5).let { if (it > 0.05) it else 0.0 }
         drivetrain.drive(0.0, turn)
     }
 }

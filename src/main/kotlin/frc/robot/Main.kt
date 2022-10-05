@@ -8,5 +8,6 @@ import edu.wpi.first.wpilibj.RobotBase
 import java.util.function.Supplier
 
 fun main() {
+    @Suppress("UNCHECKED_CAST")
     RobotBase.startRobot(::Robot as Supplier<RobotBase>)
 }
