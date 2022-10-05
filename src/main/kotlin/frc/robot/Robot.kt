@@ -75,7 +75,7 @@ class Robot : TimedRobot() {
         val tv = limelightTable.getEntry("tv").getDouble(0.0)
         val tx = limelightTable.getEntry("tx").getDouble(0.0)
 
-        val turn = tv * (tx / 29.8 * 0.5).let { if (it > 0.05) it else 0.0 }
+        val turn = tv * (tx / 29.8 * 0.5).let { if (abs(it) > 0.05) it else 0.0 }
         drivetrain.drive(0.0, turn)
     }
 }
