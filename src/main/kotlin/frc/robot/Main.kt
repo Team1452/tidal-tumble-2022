@@ -8,5 +8,5 @@ import edu.wpi.first.wpilibj.RobotBase
 import java.util.function.Supplier
 
 fun main() {
-    RobotBase.startRobot(::Robot as Supplier<RobotBase!>!)
+    RobotBase.startRobot(::Robot as Supplier<RobotBase>)
 }

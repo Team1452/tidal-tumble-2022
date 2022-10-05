@@ -12,6 +12,9 @@ import edu.wpi.first.networktables.NetworkTableInstance
 import robot.Drivetrain
 import kotlin.math.*
 import com.ctre.phoenix.sensors.Pigeon2
+import io.javalin.Javalin
+import io.javalin.websocket.WsContext
+import java.util.concurrent.ConcurrentHashMap
 
 class Robot : TimedRobot() {
     companion object {
@@ -31,6 +34,23 @@ class Robot : TimedRobot() {
 
     val pigeon2 = Pigeon2(PIGEON)
 
+    val positionWSObservers: ConcurrentHashMap<String, WsContext> = ConcurrentHashMap<String, WsContext>()
+    var app = Javalin.create().apply {
+        ws("/position") { ws -> 
+            ws.onConnect { ctx -> 
+                positionWSObservers[ctx.sessionId] = ctx
+                println("New websocket connected: $ctx")
+            }
+            ws.onClose { ctx -> 
+                positionWSObservers.remove(ctx.sessionId)
+                println("Websocket closed: $ctx")
+            }
+            ws.onMessage { ctx -> 
+                ctx.session.remote.sendString("Echo: ${ctx.message()}")
+            }
+        }
+    }.start(7070)
+
     override fun teleopInit() {}
     override fun teleopPeriodic() {
         val speed = controller.leftTriggerAxis.pow(3.0)
@@ -48,11 +68,13 @@ class Robot : TimedRobot() {
         position += (displacement - lastDisplacement) * direction
         lastDisplacement = displacement
 
+        positionWSObservers.values.forEach { it.session.remote.sendString("${position.x}, ${position.y}") }
+
         // Limelight
         val tv = limelightTable.getEntry("tv").getDouble(0.0)
         val tx = limelightTable.getEntry("tx").getDouble(0.0)
 
-        val turn = tv * (tx / 29.8 * 0.5).apply { this > 0.05 ? this : 0 }
+        val turn = tv * (tx / 29.8 * 0.5).apply { if (this > 0.05) this else 0.0 }
         drivetrain.drive(0.0, turn)
     }
 }
