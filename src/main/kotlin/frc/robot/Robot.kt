@@ -35,7 +35,7 @@ class Robot : TimedRobot() {
     val drivetrain = Drivetrain(LEFT_MOTOR_1, LEFT_MOTOR_2, RIGHT_MOTOR_1, RIGHT_MOTOR_2)
 
     val intake = brushlessMotor(INTAKE)
-    val intakeIsForward = false
+    var intakeIsForward = false
 
     val shooterTop = brushlessMotor(SHOOTER_TOP)
     val shooterBottom = brushlessMotor(SHOOTER_BOTTOM)
@@ -47,6 +47,7 @@ class Robot : TimedRobot() {
         drivetrain.drive(speed, turn)
 
         val intakeSpeed = controller.leftTriggerAxis.pow(3.0)
+        if (controller.leftBumperPressed) intakeIsForward = !intakeIsForward
         intake.set(if (intakeIsForward) intakeSpeed else -intakeSpeed)
 
         shooterBottom.set(controller.rightY.pow(3.0))
