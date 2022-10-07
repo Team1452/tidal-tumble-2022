@@ -6,5 +6,5 @@ import java.util.function.Supplier
 import frc.robot.TestRobot
 
 fun main() {
-    RobotBase.startRobot({ TestRobot() })
+    RobotBase.startRobot({ Robot() })
 }
