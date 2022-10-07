@@ -1,7 +1,3 @@
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
-
 package frc.robot
 
 import kotlin.math.*
@@ -15,13 +11,13 @@ import java.util.concurrent.ConcurrentHashMap
 import com.ctre.phoenix.sensors.Pigeon2
 import io.javalin.Javalin
 
-import robot.Drivetrain
+import frc.robot.Drivetrain
 
-class Robot : TimedRobot() {
+class TestRobot : TimedRobot() {
     companion object {
         val LEFT_MOTOR = 6
         val RIGHT_MOTOR = 7
-        val PIGEON = 14
+        val PIGEON = 10
     }
 
     val limelightTable = NetworkTableInstance.getDefault().getTable("limelight")
@@ -54,28 +50,33 @@ class Robot : TimedRobot() {
 
     override fun teleopInit() {}
     override fun teleopPeriodic() {
-        val speed = controller.leftTriggerAxis.pow(3.0)
-        val turn = controller.rightTriggerAxis.pow(3.0)
+        val speed = controller.leftX.pow(3.0)
+        val turn = controller.leftY.pow(3.0)
         drivetrain.drive(speed, turn)
     }
 
     override fun testInit() {}
     override fun testPeriodic() {
+        // Control
+        val speed = controller.leftX.pow(3.0)
+        val turn = controller.leftY.pow(3.0)
+        drivetrain.drive(speed, turn)
+
         // Positioning
         val yawRad = pigeon2.yaw * PI/180.0
         direction = Vec2(sin(yawRad), cos(yawRad))
 
-        val displacement = (drivetrain.left.encoder.position + drivetrain.right.encoder.position)/2.0
+        val displacement = (drivetrain.left.encoder.position + drivetrain.right.encoder.position)/2.0 * (PI * 7.0.pow(2))
         position += (displacement - lastDisplacement) * direction
         lastDisplacement = displacement
 
-        positionWSObservers.values.forEach { it.session.remote.sendString("${position.x}, ${position.y}") }
+        positionWSObservers.values.forEach { it.session.remote.sendString("${position.x}, ${position.y}, ${pigeon2.yaw}") }
 
         // Limelight
-        val tv = limelightTable.getEntry("tv").getDouble(0.0)
-        val tx = limelightTable.getEntry("tx").getDouble(0.0)
+        // val tv = limelightTable.getEntry("tv").getDouble(0.0)
+        // val tx = limelightTable.getEntry("tx").getDouble(0.0)
 
-        val turn = tv * (tx / 29.8 * 0.5).let { if (abs(it) > 0.05) it else 0.0 }
-        drivetrain.drive(0.0, turn)
+        // val turn = tv * (tx / 29.8 * 0.5).let { if (abs(it) > 0.05) it else 0.0 }
+        // drivetrain.drive(0.0, turn)
     }
 }
