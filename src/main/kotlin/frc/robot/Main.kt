@@ -3,8 +3,8 @@ package frc.robot
 import edu.wpi.first.wpilibj.RobotBase
 import java.util.function.Supplier
 
-import frc.robot.Robot
+import frc.robot.TestRobot
 
 fun main() {
-    RobotBase.startRobot({ Robot() })
+    RobotBase.startRobot({ TestRobot() })
 }
