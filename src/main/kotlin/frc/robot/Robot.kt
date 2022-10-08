@@ -12,33 +12,33 @@ import com.ctre.phoenix.sensors.Pigeon2
 import io.javalin.Javalin
 
 import frc.robot.Drivetrain
+import frc.robot.Constants
 
 class Robot : TimedRobot() {
-    companion object {
-        val RIGHT_MOTOR_1 = 1
-        val RIGHT_MOTOR_2 = 1
-
-        val LEFT_MOTOR_1 = 15
-        val LEFT_MOTOR_2 = 6
-
-        val INTAKE = 14
-        val CLIMB = 7
-
-        // TODO
-        val SHOOTER_BOTTOM = 5
-        val SHOOTER_TOP = 6
-    }
-
     val limelightTable = NetworkTableInstance.getDefault().getTable("limelight")
 
     val controller = XboxController(0)
-    val drivetrain = Drivetrain(LEFT_MOTOR_1, LEFT_MOTOR_2, RIGHT_MOTOR_1, RIGHT_MOTOR_2)
+    val drivetrain = Drivetrain(
+        Constants.Real.RIGHT_MOTOR_1,
+        Constants.Real.RIGHT_MOTOR_2,
+        Constants.Real.LEFT_MOTOR_1,
+        Constants.Real.LEFT_MOTOR_2
+    ) 
 
-    val intake = brushlessMotor(INTAKE)
+    val intake = brushlessMotor(Constants.Real.INTAKE)
     var intakeIsForward = false
 
-    val shooterTop = brushlessMotor(SHOOTER_TOP)
-    val shooterBottom = brushlessMotor(SHOOTER_BOTTOM)
+    val shooterTop = brushlessMotor(Constants.Real.SHOOTER_TOP)
+    val shooterBottom = brushlessMotor(Constants.Real.SHOOTER_BOTTOM)
+
+    val turntable = brushlessMotor(Constants.Real.TURNTABLE)
+
+    enum StickMode {
+        TURNTABLE, SHOOTER
+    }
+
+    var rightMode = StickMode.TURNTABLE
+    val xButtonLastPressed = false
 
     override fun teleopInit() {}
     override fun teleopPeriodic() {
@@ -50,8 +50,19 @@ class Robot : TimedRobot() {
         if (controller.leftBumperPressed) intakeIsForward = !intakeIsForward
         intake.set(if (intakeIsForward) intakeSpeed else -intakeSpeed)
 
-        shooterBottom.set(controller.rightY.pow(3.0))
-        shooterTop.set(controller.rightX.pow(3.0))
+        if (controller.xButtonPressed)
+            rightMode = when (rightMode) {
+                StickMode.TURNTABLE -> StickMode.SHOOTER
+                StickMode.SHOOTER -> StickMode.TURNTABLE
+            }
+
+        when (rightMode) {
+            StickMode.TURNTABLE -> turntable.set(controller.rightY.pow(3.0))
+            StickMode.SHOOTER -> {
+                shooterTop.set(controller.rightX.pow(3.0))
+                shooterBottom.set(controller.rightY.pow(3.0) / Constants.Real.SHOOTER_BOTTOM_GEAR_RATIO)
+            }
+        }
     }
 
     override fun testInit() {}

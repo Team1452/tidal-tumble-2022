@@ -1,13 +1,18 @@
 package frc.robot
 
 import kotlin.math.*
+import kotlin.io.path.Path
 
 import edu.wpi.first.wpilibj.TimedRobot
 import edu.wpi.first.wpilibj.XboxController
 import edu.wpi.first.wpilibj.drive.Vector2d
+import edu.wpi.first.wpilibj.Filesystem
 import edu.wpi.first.networktables.NetworkTableInstance
+import edu.wpi.first.math.trajectory.TrajectoryUtil
+import edu.wpi.first.math.trajectory.Trajectory
 import io.javalin.websocket.WsContext
 import java.util.concurrent.ConcurrentHashMap
+import java.io.IOException
 import com.ctre.phoenix.sensors.Pigeon2
 import io.javalin.Javalin
 
@@ -47,6 +52,18 @@ class TestRobot : TimedRobot() {
             }
         }
     }.start(7070)
+
+    val trajectoryJSON = "resources/paths/topBlue.wpilib.json"
+    var trajectory = Trajectory()
+
+    override fun robotInit() {
+        try {
+            val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
+            trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
+        } catch (err: IOException) {
+            error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
+        }
+    }
 
     override fun teleopInit() {}
     override fun teleopPeriodic() {
