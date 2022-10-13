@@ -1,0 +1,16 @@
+ERROR ﻿﻿ 1 ﻿﻿ The robot program quit unexpectedly. This is usually due to a code error.
+  The above stacktrace can help determine where the error occurred.
+  See https://wpilib.org/stacktrace for more information.
+ ﻿﻿ edu.wpi.first.wpilibj.RobotBase.runRobot(RobotBase.java:336) ﻿﻿﻿
+﻿﻿﻿﻿﻿﻿ 	at frc.robot.Drivetrain.<init>(Drivetrain.kt:12) ﻿
+﻿﻿﻿﻿﻿﻿ 	at frc.robot.Robot.<init>(Robot.kt:21) ﻿
+﻿﻿﻿﻿﻿﻿ 	at edu.wpi.first.wpilibj.RobotBase.runRobot(RobotBase.java:322) ﻿
+﻿﻿﻿﻿﻿﻿ 	at edu.wpi.first.wpilibj.RobotBase.startRobot(RobotBase.java:463) ﻿
+﻿﻿﻿﻿﻿﻿ 	at frc.robot.MainKt.main(Main.kt:6) ﻿
+﻿﻿﻿﻿﻿﻿ 	at frc.robot.MainKt.main(Main.kt) ﻿
+﻿﻿﻿﻿﻿﻿  ﻿
+﻿﻿﻿﻿﻿﻿ Error at edu.wpi.first.wpilibj.RobotBase.runRobot(RobotBase.java:336): The robot program quit unexpectedly. This is usually due to a code error. ﻿
+﻿﻿﻿﻿﻿﻿   The above stacktrace can help determine where the error occurred. ﻿
+﻿﻿﻿﻿﻿﻿   See https://wpilib.org/stacktrace for more information. ﻿
+﻿﻿﻿﻿﻿﻿  ﻿
+﻿﻿﻿﻿﻿﻿﻿﻿ERROR ﻿﻿ 1 ﻿﻿ Could not instantiate robot com.r

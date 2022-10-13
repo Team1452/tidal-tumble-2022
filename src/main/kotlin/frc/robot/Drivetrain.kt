@@ -1,9 +1,12 @@
+/*
 package frc.robot
 
 import com.revrobotics.CANSparkMax
 import com.revrobotics.CANSparkMaxLowLevel
+import com.revrobotics.CANSparkMaxLowLevel.*
+import frc.robot.main
 
-fun brushlessMotor(port: Int) = CANSparkMax(port, CANSparkMaxLowLevel.MotorType.kBrushless)
+fun brushlessMotor(port: Int) = CANSparkMax(port, MotorType.kBrushless)
 
 class Drivetrain(val leftPort: Int, val left2Port: Int?, val rightPort: Int, val right2Port: Int?) {
     val left = brushlessMotor(leftPort)
@@ -28,3 +31,4 @@ class Drivetrain(val leftPort: Int, val left2Port: Int?, val rightPort: Int, val
         driveRight(speed - turn)
     }
 }
+ */

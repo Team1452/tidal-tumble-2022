@@ -1,3 +1,4 @@
+/*
 package frc.robot
 
 import com.revrobotics.CANSparkMax
@@ -12,13 +13,14 @@ import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.math.geometry.Pose2d
 import frc.robot.getRotation2d
+import frc.robot.Constants
 
 fun Pigeon2.getRotation2d(): Rotation2d = Rotation2d(Math.toRadians(this.yaw))
 
 class SparkGroupEncoder(val motors: List<CANSparkMax>) {
     val position: Double
         get() = motors.fold(0.0) { acc, motor -> acc + motor.encoder.position } / motors.size
-            * Constants.WHEEL_CIRCUMFERENCE
+            * Constants.WHEEL_CIRCUMFERENCE_INCHES
     
     var lastPosition = position
     var rate = 0.0
@@ -98,3 +100,4 @@ class DriveSubsystem(
         right.forEach { it.setVoltage(rightVolts) }
     }
 }
+ */

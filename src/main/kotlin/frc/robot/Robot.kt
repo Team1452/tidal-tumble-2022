@@ -11,19 +11,26 @@ import java.util.concurrent.ConcurrentHashMap
 import com.ctre.phoenix.sensors.Pigeon2
 import io.javalin.Javalin
 
-import frc.robot.Drivetrain
+//import frc.robot.Drivetrain
 import frc.robot.Constants
+
+import com.revrobotics.CANSparkMax
+import com.revrobotics.CANSparkMaxLowLevel
+import com.revrobotics.CANSparkMaxLowLevel.*
+import frc.robot.main
+
+fun brushlessMotor(port: Int) = CANSparkMax(port, MotorType.kBrushless)
 
 class Robot : TimedRobot() {
     val limelightTable = NetworkTableInstance.getDefault().getTable("limelight")
 
     val controller = XboxController(0)
-    val drivetrain = Drivetrain(
+    /*val drivetrain = Drivetrain(
         Constants.Real.RIGHT_MOTOR_1,
         Constants.Real.RIGHT_MOTOR_2,
         Constants.Real.LEFT_MOTOR_1,
         Constants.Real.LEFT_MOTOR_2
-    ) 
+    ) */
 
     val intake = brushlessMotor(Constants.Real.INTAKE)
     var intakeIsForward = false
@@ -33,7 +40,7 @@ class Robot : TimedRobot() {
 
     val turntable = brushlessMotor(Constants.Real.TURNTABLE)
 
-    enum StickMode {
+    enum class StickMode {
         TURNTABLE, SHOOTER
     }
 
@@ -44,7 +51,7 @@ class Robot : TimedRobot() {
     override fun teleopPeriodic() {
         val speed = controller.leftX.pow(3.0)
         val turn = controller.leftY.pow(3.0)
-        drivetrain.drive(speed, turn)
+        //drivetrain.drive(speed, turn)
 
         val intakeSpeed = controller.leftTriggerAxis.pow(3.0)
         if (controller.leftBumperPressed) intakeIsForward = !intakeIsForward

@@ -4,7 +4,7 @@ import kotlin.math.*
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics
 
 object Constants {
-    val WHEEL_CIRCUMFERENCE_INCHES = PI * 7.0.pow(2.0)
+    public val WHEEL_CIRCUMFERENCE_INCHES = PI * 7.0.pow(2.0)
 
     val TRACK_WIDTH_METERS = 0.69
     val DRIVE_KINEMATICS = DifferentialDriveKinematics(TRACK_WIDTH_METERS)
@@ -29,24 +29,24 @@ object Constants {
         val LEFT_MOTOR = 6
         val RIGHT_MOTOR = 7
 
-        val PIGEON = 10
+        //val PIGEON = 10
     }
 
     public object Real {
         val RIGHT_MOTOR_1 = 1
-        val RIGHT_MOTOR_2 = 1
+        val RIGHT_MOTOR_2 = 5
 
         val LEFT_MOTOR_1 = 15
-        val LEFT_MOTOR_2 = 6
+        val LEFT_MOTOR_2 = 2
 
         val INTAKE = 14
         val CLIMB = 7
 
-        val TURNTABLE = 10 // TODO
+        val TURNTABLE = 8 // TODO
 
         // TODO
-        val SHOOTER_BOTTOM = 5
-        val SHOOTER_TOP = 6
+        val SHOOTER_BOTTOM = 6 
+        val SHOOTER_TOP = 3
 
         val SHOOTER_BOTTOM_GEAR_RATIO = 2.5 / 1.5
     }
