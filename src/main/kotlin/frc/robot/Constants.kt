@@ -33,6 +33,7 @@ object Constants {
     }
 
     public object Real {
+        val CSV_PATH = "";
         val RIGHT_MOTOR_1 = 1
         val RIGHT_MOTOR_2 = 1
 
