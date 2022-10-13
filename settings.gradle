@@ -12,6 +12,7 @@ pluginManagement {
                 publicFolder = "C:\\Users\\Public"
             }
             def homeRoot = new File(publicFolder, "wpilib")
+
             frcHome = new File(homeRoot, frcYear)
         } else {
             def userFolder = System.getProperty("user.home")
