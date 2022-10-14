@@ -45,7 +45,7 @@ class Robot : TimedRobot() {
 
     var rightMode = StickMode.TURNTABLE
     val xButtonLastPressed = false
-
+    var ratio = Constants.Real.SHOOTER_BOTTOM_GEAR_RATIO
     override fun teleopInit() {}
     override fun teleopPeriodic() {
         val speed = controller.leftX.pow(3.0)
@@ -56,17 +56,19 @@ class Robot : TimedRobot() {
         if (controller.leftBumperPressed) intakeIsForward = !intakeIsForward
         intake.set(if (intakeIsForward) intakeSpeed else -intakeSpeed)
 
-        if (controller.xButtonPressed)
+        if (controller.yButtonPressed)
             rightMode = when (rightMode) {
                 StickMode.TURNTABLE -> StickMode.SHOOTER
                 StickMode.SHOOTER -> StickMode.TURNTABLE
             }
-            var ratio = controller.rightY.pow(3.0) / 2.5
+
+        if (controller.bButtonPressed) ratio++
+        if (controller.xButtonPressed) ratio--
+        println(ratio)
         when (rightMode) {
             StickMode.TURNTABLE -> {//turntable.set(controller.rightX)
                 shooterTop.set(-controller.rightY.pow(3.0)) 
-                shooterBottom.set((-controller.rightY.pow(3.0)) / Constants.Real.SHOOTER_BOTTOM_GEAR_RATIO)
-                println(controller.rightY)
+                shooterBottom.set((-controller.rightY.pow(3.0)) / ratio)
         }
             StickMode.SHOOTER -> {
                 shooterTop.set(controller.rightTriggerAxis.pow(3.0))
