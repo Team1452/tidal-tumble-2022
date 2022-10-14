@@ -1,4 +1,3 @@
-/*
 package frc.robot
 
 import com.revrobotics.CANSparkMax
@@ -31,4 +30,3 @@ class Drivetrain(val leftPort: Int, val left2Port: Int?, val rightPort: Int, val
         driveRight(speed - turn)
     }
 }
- */

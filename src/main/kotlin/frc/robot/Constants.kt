@@ -49,6 +49,6 @@ object Constants {
         val SHOOTER_BOTTOM = 6 
         val SHOOTER_TOP = 3
 
-        val SHOOTER_BOTTOM_GEAR_RATIO = 2.5 / 1.5
+        val SHOOTER_BOTTOM_GEAR_RATIO = 5 
     }
 }
