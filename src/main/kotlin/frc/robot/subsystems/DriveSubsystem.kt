@@ -1,4 +1,3 @@
-/*
 package frc.robot
 
 import com.revrobotics.CANSparkMax
@@ -100,4 +99,3 @@ class DriveSubsystem(
         right.forEach { it.setVoltage(rightVolts) }
     }
 }
- */

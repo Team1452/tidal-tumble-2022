@@ -18,7 +18,7 @@ import io.javalin.Javalin
 import frc.robot.Constants
 import frc.robot.Drivetrain
 
-class TestRobot : TimedRobot() {
+class TestRobot : TimedRobot(Constants.PERIOD_MS) {
     companion object {
         val LEFT_MOTOR = 6
         val RIGHT_MOTOR = 7

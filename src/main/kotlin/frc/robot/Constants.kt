@@ -9,6 +9,8 @@ object Constants {
     val TRACK_WIDTH_METERS = 0.69
     val DRIVE_KINEMATICS = DifferentialDriveKinematics(TRACK_WIDTH_METERS)
 
+    val PERIOD_MS = 20.0
+
     val COMMAND_SCHEDULER_PERIOD_SECONDS = 20/1000
 
     val KS_VOLTS = 0.22
@@ -40,15 +42,17 @@ object Constants {
         val LEFT_MOTOR_1 = 15
         val LEFT_MOTOR_2 = 2
 
-        val INTAKE = 14
+        val INTAKE = 
+        val COLON = 14
         val CLIMB = 7
 
         val TURNTABLE = 8 // TODO
+        val TURNTABLE_GEAR_RATIO = 14.0 / 1.066
 
         // TODO
         val SHOOTER_BOTTOM = 6 
         val SHOOTER_TOP = 3
 
-        val SHOOTER_BOTTOM_GEAR_RATIO = 10 
+        val SHOOTER_BOTTOM_GEAR_RATIO: Double = 2.0 
     }
 }
