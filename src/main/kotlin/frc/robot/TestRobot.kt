@@ -1,3 +1,4 @@
+/*
 package frc.robot
 
 import kotlin.math.*
@@ -18,7 +19,7 @@ import io.javalin.Javalin
 import frc.robot.Constants
 import frc.robot.Drivetrain
 
-class TestRobot : TimedRobot(Constants.PERIOD_MS) {
+class TestRobot : TimedRobot(Constants.PERIOD) {
     companion object {
         val LEFT_MOTOR = 6
         val RIGHT_MOTOR = 7
@@ -97,3 +98,4 @@ class TestRobot : TimedRobot(Constants.PERIOD_MS) {
         // drivetrain.drive(0.0, turn)
     }
 }
+ */
