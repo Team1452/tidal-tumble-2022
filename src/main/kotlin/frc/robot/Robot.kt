@@ -9,12 +9,14 @@ import edu.wpi.first.networktables.NetworkTableInstance
 import io.javalin.websocket.WsContext
 import java.util.concurrent.ConcurrentHashMap
 import java.io.IOException
+import java.io.FileWriter
 import com.ctre.phoenix.sensors.Pigeon2
 import io.javalin.Javalin
 import com.revrobotics.CANSparkMax
 import com.revrobotics.CANSparkMaxLowLevel
 import com.revrobotics.CANSparkMaxLowLevel.MotorType.*
 import com.revrobotics.CANSparkMaxLowLevel.*
+import com.opencsv.CSVWriter
 import edu.wpi.first.wpilibj.DoubleSolenoid
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value.*
 import edu.wpi.first.wpilibj.PneumaticsModuleType
@@ -56,6 +58,32 @@ class Robot : TimedRobot(Constants.PERIOD) {
     //     // Pigeon2(Constants.Real.PIGEON)
     // )
 
+    // var writer = CSVWriter(FileWriter(Constants.Real.CSV_PATH, true); 
+    var writer = FileWriter(Constants.Real.CSV_PATH, true)
+
+    fun log(dist: Double, shooterSpeed: Double?) {
+        writer.write("$dist,$shooterSpeed")
+        writer.flush()
+    }
+
+    val shooterSpeed = 0.0
+
+    var app = Javalin.create().apply {
+        ws("/shooter") { ws -> 
+            ws.onConnect { ctx -> 
+                println("New websocket connected: $ctx")
+            }
+            ws.onClose { ctx -> 
+                println("Websocket closed: $ctx")
+            }
+            ws.onMessage { ctx -> 
+                shooterSpeed = ctx.message().substringBefore(',').toDouble()
+                ratio = ctx.message().substringAfter(',').toDouble()
+                // ctx.session.remote.sendString("Echo: ${ctx.message()}")
+            }
+        }
+    }.start(7070)
+
     val intake = brushlessMotor(Constants.Real.INTAKE)
     var intakeIsForward = false
 
@@ -91,9 +119,10 @@ class Robot : TimedRobot(Constants.PERIOD) {
         if (controller.aButton) intakeIsForward = !intakeIsForward
         intake.set(if (intakeIsForward) intakeSpeed else -intakeSpeed)
 
-        println(ratio/2)
-        shooterTop.set((-controller.rightY.pow(3.0)) * (ratio / 2.0))
-        shooterBottom.set((-controller.rightY.pow(3.0)) / (ratio / 2.0))
+        // shooterTop.set((-controller.rightY.pow(3.0)) * (1.0 - ratio)))
+        // shooterBottom.set((-controller.rightY.pow(3.0)) * ratio))
+        shooterTop.set(-shooterSpeed * (1.0 - ratio))
+        shooterBottom.set(-shooterSpeed * ratio)
         turntable.set(controller.rightX.deadzoneOne(0.1))
 
         if (controller.yButtonPressed) centering = !centering
@@ -130,33 +159,33 @@ class Robot : TimedRobot(Constants.PERIOD) {
     }
 
     override fun testInit() {
-        try {
-            val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
-            trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
-        } catch (err: IOException) {
-            error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
-        }
+        // try {
+        //     val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
+        //     trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
+        // } catch (err: IOException) {
+        //     error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
+        // }
 
-        val ramseteCommand = RamseteCommand(
-            trajectory,
-            drive::getPose,
-            RamseteController(Auto.RAMSETE_B, Constants.Auto.RAMSETE_B),
-            SimpleMotorFeedforward(
-                KS_VOLTS,
-                KV_VOLT_SECONDS_PER_METER,
-                KA_VOLT_SECONDS_SQUARED_PER_METER
-            ),
-            DRIVE_KINEMATICS,
-            drive::getWheelSpeeds,
-            PIDController(P_DRIVE_VEL, 0.0, 0.0),
-            PIDController(P_DRIVE_VEL, 0.0, 0.0),
-            drive::tankDriveVolts,
-            drive
-        )
+        // val ramseteCommand = RamseteCommand(
+        //     trajectory,
+        //     drive::getPose,
+        //     RamseteController(Auto.RAMSETE_B, Constants.Auto.RAMSETE_B),
+        //     SimpleMotorFeedforward(
+        //         KS_VOLTS,
+        //         KV_VOLT_SECONDS_PER_METER,
+        //         KA_VOLT_SECONDS_SQUARED_PER_METER
+        //     ),
+        //     DRIVE_KINEMATICS,
+        //     drive::getWheelSpeeds,
+        //     PIDController(P_DRIVE_VEL, 0.0, 0.0),
+        //     PIDController(P_DRIVE_VEL, 0.0, 0.0),
+        //     drive::tankDriveVolts,
+        //     drive
+        // )
 
-        drive.resetOdometry(trajectory.initialPose)
+        // drive.resetOdometry(trajectory.initialPose)
 
-        ramseteCommand.andThen(() -> drive.tankDriveVolts(0, 0))
+        // ramseteCommand.andThen(() -> drive.tankDriveVolts(0, 0))
     }
     override fun testPeriodic() {
         CommandScheduler.getInstance().run()
