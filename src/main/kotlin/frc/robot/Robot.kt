@@ -66,7 +66,8 @@ class Robot : TimedRobot(Constants.PERIOD) {
         writer.flush()
     }
 
-    val shooterSpeed = 0.0
+    val bottomSpeed = 0.0
+    val upperSpeed = 0.0
 
     var app = Javalin.create().apply {
         ws("/shooter") { ws -> 
@@ -77,8 +78,8 @@ class Robot : TimedRobot(Constants.PERIOD) {
                 println("Websocket closed: $ctx")
             }
             ws.onMessage { ctx -> 
-                shooterSpeed = ctx.message().substringBefore(',').toDouble()
-                ratio = ctx.message().substringAfter(',').toDouble()
+                bottomSpeed = ctx.message().substringBefore(',').toDouble()
+                upperSpeed = ctx.message().substringAfter(',').toDouble()
                 // ctx.session.remote.sendString("Echo: ${ctx.message()}")
             }
         }
@@ -121,8 +122,8 @@ class Robot : TimedRobot(Constants.PERIOD) {
 
         // shooterTop.set((-controller.rightY.pow(3.0)) * (1.0 - ratio)))
         // shooterBottom.set((-controller.rightY.pow(3.0)) * ratio))
-        shooterTop.set(-shooterSpeed * (1.0 - ratio))
-        shooterBottom.set(-shooterSpeed * ratio)
+        shooterTop.set(-bottomSpeed)
+        shooterBottom.set(-upperSpeed)
         turntable.set(controller.rightX.deadzoneOne(0.1))
 
         if (controller.yButtonPressed) centering = !centering

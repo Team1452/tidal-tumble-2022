@@ -23,7 +23,7 @@ import frc.robot.Constants
 import frc.robot.Drivetrain
 
 // class TestRobot : TimedRobot(Constants.PERIOD) {
-class TestRobot : TimedRobot(200.0/1000.0) {
+class TestRobot : TimedRobot(20.0/1000.0) {
     companion object {
         val LEFT_MOTOR = 6
         val RIGHT_MOTOR = 7
