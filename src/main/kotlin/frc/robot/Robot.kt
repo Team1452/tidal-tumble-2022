@@ -5,7 +5,11 @@ import kotlin.math.*
 import edu.wpi.first.wpilibj.TimedRobot
 import edu.wpi.first.wpilibj.XboxController
 import edu.wpi.first.wpilibj.drive.Vector2d
+import edu.wpi.first.wpilibj.Filesystem
+import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard
 import edu.wpi.first.networktables.NetworkTableInstance
+import edu.wpi.first.networktables.NetworkTableEntry
 import io.javalin.websocket.WsContext
 import java.util.concurrent.ConcurrentHashMap
 import java.io.IOException
@@ -16,11 +20,9 @@ import com.revrobotics.CANSparkMax
 import com.revrobotics.CANSparkMaxLowLevel
 import com.revrobotics.CANSparkMaxLowLevel.MotorType.*
 import com.revrobotics.CANSparkMaxLowLevel.*
-import com.opencsv.CSVWriter
 import edu.wpi.first.wpilibj.DoubleSolenoid
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value.*
 import edu.wpi.first.wpilibj.PneumaticsModuleType
-import edu.wpi.first.wpilibj.Filesystem
 import edu.wpi.first.wpilibj2.command.CommandScheduler
 import edu.wpi.first.wpilibj2.command.RamseteCommand
 import edu.wpi.first.math.controller.PIDController
@@ -59,7 +61,7 @@ class Robot : TimedRobot(Constants.PERIOD) {
     // )
 
     // var writer = CSVWriter(FileWriter(Constants.Real.CSV_PATH, true); 
-    var writer = FileWriter(Constants.Real.CSV_PATH, true)
+    var writer = FileWriter(Filesystem.getDeployDirectory().toPath().resolve(Constants.Real.CSV_PATH).toString(), true)
 
     fun log(dist: Double, shooterSpeed: Double?) {
         writer.write("$dist,$shooterSpeed")
@@ -100,6 +102,10 @@ class Robot : TimedRobot(Constants.PERIOD) {
     val leftSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, Constants.Real.LEFT_SOLENOID_1, Constants.Real.LEFT_SOLENOID_2);
     val rightSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, Constants.Real.RIGHT_SOLENOID_1, Constants.Real.RIGHT_SOLENOID_2);
 
+    var topSpeed: NetworkTableEntry? = null;
+    var bottomSpeed: NetworkTableEntry? = null;
+    var saveButton: NetworkTableEntry? = null;
+
     val trajectoryJSON = "resources/paths/topBlue.wpilib.json"
     var trajectory = Trajectory()
 
@@ -107,10 +113,20 @@ class Robot : TimedRobot(Constants.PERIOD) {
 
     }
 
-    override fun teleopInit() {}
-    override fun teleopPeriodic() {
-        // scheduler.tick()
 
+    override fun teleopInit() {
+
+    }
+    override fun teleopPeriodic() {
+        val tab = Shuffleboard.getTab("Test");
+        topSpeed = tab.add("topSpeed", 1).withWidget(BuiltInWidgets.kNumberSlider)
+                   .getEntry();
+        bottomSpeed =
+                tab.add("bottomSpeed", 2).withWidget(BuiltInWidgets.kNumberSlider)
+                   .getEntry();
+
+        saveButton =
+                tab.add("Save Speed", 3).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
         val speed = controller.leftX.pow(3.0)
         val turn = controller.leftY.pow(3.0)
         drive.drive(speed, turn)
@@ -155,6 +171,16 @@ class Robot : TimedRobot(Constants.PERIOD) {
                 // TODO: Naive radar sweep around 210 deg range if target not found 
                 // turntable.set(-turntable.encoder.position / 30)
             }
+        }
+
+        shooterTop.set(topSpeed!!.getDouble(0.0));
+        shooterBottom.set(bottomSpeed!!.getDouble(0.0));
+
+        // If save button pressed, write to CSV and reset to unpressed
+        if (saveButton!!.getBoolean(false)) {
+            saveButton!!.forceSetBoolean(false)
+            writer.write("$topSpeed,$bottomSpeed")
+            writer.flush()
         }
     }
 

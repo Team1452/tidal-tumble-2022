@@ -44,7 +44,7 @@ object Constants {
         val RIGHT_SOLENOID_1 = 1
         val RIGHT_SOLENOID_2 = 0
 
-        val CSV_PATH = "";
+        val CSV_PATH = "shooter_config.csv";
         val RIGHT_MOTOR_1 = 11
         val RIGHT_MOTOR_2 = 18
 

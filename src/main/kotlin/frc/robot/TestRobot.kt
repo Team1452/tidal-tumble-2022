@@ -10,6 +10,7 @@ import edu.wpi.first.wpilibj.Filesystem
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard
+import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets
 import edu.wpi.first.networktables.NetworkTableInstance
 import edu.wpi.first.networktables.NetworkTableEntry
 import edu.wpi.first.math.trajectory.TrajectoryUtil
@@ -37,7 +38,7 @@ class TestRobot : TimedRobot(200.0/1000.0) {
     val limelightTable = NetworkTableInstance.getDefault().getTable("limelight")
 
     val controller = XboxController(0)
-    // val drivetrain = Drivetrain(LEFT_MOTOR, RIGHT_MOTOR)
+    val drivetrain = Drivetrain(LEFT_MOTOR, RIGHT_MOTOR)
 
     var direction = Vec2(0.0, 0.0)
     var position = Vec2(0.0, 0.0)
@@ -55,6 +56,7 @@ class TestRobot : TimedRobot(200.0/1000.0) {
 
     var topSpeed:NetworkTableEntry? = null;
     var bottomSpeed:NetworkTableEntry? = null;
+    var saveButton:NetworkTableEntry? = null;
     override fun robotInit() {
         try {
             val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
@@ -64,11 +66,14 @@ class TestRobot : TimedRobot(200.0/1000.0) {
         }
         val tab = Shuffleboard.getTab("Test");
         
-        topSpeed = tab.add("topSpeed", 1)
+        topSpeed = tab.add("topSpeed", 1).withWidget(BuiltInWidgets.kNumberSlider)
                    .getEntry();
         bottomSpeed =
-                tab.add("bottomSpeed", 2)
+                tab.add("bottomSpeed", 2).withWidget(BuiltInWidgets.kNumberSlider)
                    .getEntry();
+
+        saveButton =
+                tab.add("Save Speed", 3).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
     }
 
     override fun teleopInit() {}
@@ -78,5 +83,8 @@ class TestRobot : TimedRobot(200.0/1000.0) {
         drivetrain.drive(speed, turn)
         shooterTop.set(topSpeed!!.getDouble(0.0));
         shooterBottom.set(bottomSpeed!!.getDouble(0.0));
+        if(saveButton!!.getBoolean(false)){
+            saveButton!!.forceSetBoolean(false)
+        }
     }
 }
