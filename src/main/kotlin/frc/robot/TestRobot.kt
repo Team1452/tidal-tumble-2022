@@ -7,7 +7,11 @@ import edu.wpi.first.wpilibj.TimedRobot
 import edu.wpi.first.wpilibj.XboxController
 import edu.wpi.first.wpilibj.drive.Vector2d
 import edu.wpi.first.wpilibj.Filesystem
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard
 import edu.wpi.first.networktables.NetworkTableInstance
+import edu.wpi.first.networktables.NetworkTableEntry
 import edu.wpi.first.math.trajectory.TrajectoryUtil
 import edu.wpi.first.math.trajectory.Trajectory
 import io.javalin.websocket.WsContext
@@ -55,7 +59,11 @@ class TestRobot : TimedRobot() {
 
     val trajectoryJSON = "resources/paths/topBlue.wpilib.json"
     var trajectory = Trajectory()
+    val shooterTop = brushlessMotor(Constants.Real.SHOOTER_TOP)
+    val shooterBottom = brushlessMotor(Constants.Real.SHOOTER_BOTTOM)
 
+    var topSpeed:NetworkTableEntry? = null;
+    var bottomSpeed:NetworkTableEntry? = null;
     override fun robotInit() {
         try {
             val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
@@ -63,6 +71,13 @@ class TestRobot : TimedRobot() {
         } catch (err: IOException) {
             error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
         }
+        val tab = Shuffleboard.getTab("Test");
+        
+        topSpeed = tab.add("topSpeed", 1)
+                   .getEntry();
+        bottomSpeed =
+                tab.add("bottomSpeed", 2)
+                   .getEntry();
     }
 
     override fun teleopInit() {}
@@ -70,30 +85,7 @@ class TestRobot : TimedRobot() {
         val speed = controller.leftX.pow(3.0)
         val turn = controller.leftY.pow(3.0)
         drivetrain.drive(speed, turn)
-    }
-
-    override fun testInit() {}
-    override fun testPeriodic() {
-        // Control
-        val speed = controller.leftX.pow(3.0)
-        val turn = controller.leftY.pow(3.0)
-        drivetrain.drive(speed, turn)
-
-        // Positioning
-        val yawRad = pigeon2.yaw * PI/180.0
-        direction = Vec2(sin(yawRad), cos(yawRad))
-
-        val displacement = (drivetrain.left.encoder.position + drivetrain.right.encoder.position)/2.0 * (PI * 7.0.pow(2))
-        position += (displacement - lastDisplacement) * direction
-        lastDisplacement = displacement
-
-        positionWSObservers.values.forEach { it.session.remote.sendString("${position.x}, ${position.y}, ${pigeon2.yaw}") }
-
-        // Limelight
-        // val tv = limelightTable.getEntry("tv").getDouble(0.0)
-        // val tx = limelightTable.getEntry("tx").getDouble(0.0)
-
-        // val turn = tv * (tx / 29.8 * 0.5).let { if (abs(it) > 0.05) it else 0.0 }
-        // drivetrain.drive(0.0, turn)
+        shooterTop.set(topSpeed!!.getDouble(0.0));
+        shooterBottom.set(bottomSpeed!!.getDouble(0.0));
     }
 }
