@@ -61,30 +61,25 @@ class Robot : TimedRobot(Constants.PERIOD) {
     // )
 
     // var writer = CSVWriter(FileWriter(Constants.Real.CSV_PATH, true); 
-    var writer = FileWriter(Filesystem.getDeployDirectory().toPath().resolve(Constants.Real.CSV_PATH).toString(), true)
+    // var writer = FileWriter(Filesystem.getDeployDirectory().toPath().resolve(Constants.Real.CSV_PATH).toString())
+    var topSpeed = 0.0
+    var bottomSpeed = 0.0
 
-    fun log(dist: Double, shooterSpeed: Double?) {
-        writer.write("$dist,$shooterSpeed")
-        writer.flush()
-    }
-
-    val shooterSpeed = 0.0
-
-    var app = Javalin.create().apply {
-        ws("/shooter") { ws -> 
-            ws.onConnect { ctx -> 
-                println("New websocket connected: $ctx")
-            }
-            ws.onClose { ctx -> 
-                println("Websocket closed: $ctx")
-            }
-            ws.onMessage { ctx -> 
-                shooterSpeed = ctx.message().substringBefore(',').toDouble()
-                ratio = ctx.message().substringAfter(',').toDouble()
-                // ctx.session.remote.sendString("Echo: ${ctx.message()}")
-            }
-        }
-    }.start(7070)
+    // var app = Javalin.create().apply {
+    //     ws("/shooter") { ws -> 
+    //         ws.onConnect { ctx -> 
+    //             println("New websocket connected: $ctx")
+    //         }
+    //         ws.onClose { ctx -> 
+    //             println("Websocket closed: $ctx")
+    //         }
+    //         ws.onMessage { ctx -> 
+    //             bottomSpeed = ctx.message().substringBefore(',').toDouble()
+    //             topSpeed = ctx.message().substringAfter(',').toDouble()
+    //             // ctx.session.remote.sendString("Echo: ${ctx.message()}")
+    //         }
+    //     }
+    // }.start(7070)
 
     val intake = brushlessMotor(Constants.Real.INTAKE)
     var intakeIsForward = false
@@ -100,10 +95,10 @@ class Robot : TimedRobot(Constants.PERIOD) {
     var ratio: Double = Constants.Real.SHOOTER_BOTTOM_GEAR_RATIO 
     val scheduler = Scheduler()
     val leftSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, Constants.Real.LEFT_SOLENOID_1, Constants.Real.LEFT_SOLENOID_2);
-    val rightSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, Constants.Real.RIGHT_SOLENOID_1, Constants.Real.RIGHT_SOLENOID_2);
+    // val rightSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, Constants.Real.RIGHT_SOLENOID_1, Constants.Real.RIGHT_SOLENOID_2);
 
-    var topSpeed: NetworkTableEntry? = null;
-    var bottomSpeed: NetworkTableEntry? = null;
+    var topSpeedSlider: NetworkTableEntry? = null;
+    var bottomSpeedSlider: NetworkTableEntry? = null;
     var saveButton: NetworkTableEntry? = null;
 
     val trajectoryJSON = "resources/paths/topBlue.wpilib.json"
@@ -115,73 +110,72 @@ class Robot : TimedRobot(Constants.PERIOD) {
 
 
     override fun teleopInit() {
-
+        val tab = Shuffleboard.getTab("Test");
+        topSpeedSlider = tab.add("topSpeed", 1).withWidget(BuiltInWidgets.kNumberSlider).getEntry();
+        bottomSpeedSlider = tab.add("bottomSpeed", 2).withWidget(BuiltInWidgets.kNumberSlider).getEntry();
+        saveButton = tab.add("Save Speed", 3).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
     }
     override fun teleopPeriodic() {
-        val tab = Shuffleboard.getTab("Test");
-        topSpeed = tab.add("topSpeed", 1).withWidget(BuiltInWidgets.kNumberSlider)
-                   .getEntry();
-        bottomSpeed =
-                tab.add("bottomSpeed", 2).withWidget(BuiltInWidgets.kNumberSlider)
-                   .getEntry();
-
-        saveButton =
-                tab.add("Save Speed", 3).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
         val speed = controller.leftX.pow(3.0)
         val turn = controller.leftY.pow(3.0)
         drive.drive(speed, turn)
 
-        val intakeSpeed = controller.leftTriggerAxis.pow(3.0)
+        // Right trigger controls intake speed, A button to reverse
+        val intakeSpeed = controller.rightTriggerAxis.pow(3.0)
         if (controller.aButton) intakeIsForward = !intakeIsForward
         intake.set(if (intakeIsForward) intakeSpeed else -intakeSpeed)
 
-        // shooterTop.set((-controller.rightY.pow(3.0)) * (1.0 - ratio)))
-        // shooterBottom.set((-controller.rightY.pow(3.0)) * ratio))
-        shooterTop.set(-shooterSpeed * (1.0 - ratio))
-        shooterBottom.set(-shooterSpeed * ratio)
-        turntable.set(controller.rightX.deadzoneOne(0.1))
+        println("ratio $ratio")
 
-        if (controller.yButtonPressed) centering = !centering
-        if (controller.rightBumperPressed) centering = !centering
+        // Left trigger for shooter speed, X/B to decrease/increase ratio
+        if (controller.xButtonPressed) ratio -= 1.0
+        if (controller.bButtonPressed) ratio += 1.0
 
-        if (controller.bButton)
+        val shooterSpeed = -controller.leftTriggerAxis.pow(3.0)
+        shooterTop.set(shooterSpeed * ratio)
+        shooterBottom.set(shooterSpeed/(ratio * 0.5))
+
+        // Right x axis for turntable
+        turntable.set(controller.rightX.deadzoneOne(0.05))
+
+        // Left bumper to spin colon upwards, right for down
+        if (controller.leftBumper)
             colon.set(-1.0)
+        else if (controller.rightBumper)
+            colon.set(1.0)
         else
             colon.set(0.0)
         
-        println("left bumper: ${controller.leftBumperPressed}, ${controller.leftBumperReleased}")
-        if (controller.rightBumper) {
-            println("Opening left/right solenoids")
-            leftSolenoid.set(kForward)
-            rightSolenoid.set(kForward)
-        } else if (controller.leftBumperReleased) {
-            println("Closing left/right solenoids")
-            leftSolenoid.set(kReverse)
-            rightSolenoid.set(kReverse)
+        if (controller.yButtonPressed) {
+            leftSolenoid.set(when (leftSolenoid.get()) {
+                DoubleSolenoid.Value.kOff, null -> DoubleSolenoid.Value.kForward
+                DoubleSolenoid.Value.kForward -> DoubleSolenoid.Value.kReverse
+                DoubleSolenoid.Value.kReverse -> DoubleSolenoid.Value.kReverse
+            })
         }
         
-        if (centering) {
-            val tv = limelightTable.getEntry("tv").getDouble(0.0)
-            val tx = limelightTable.getEntry("tx").getDouble(0.0)
+        // if (centering) {
+        //     val tv = limelightTable.getEntry("tv").getDouble(0.0)
+        //     val tx = limelightTable.getEntry("tx").getDouble(0.0)
 
-            if (tv == 1.0) {
-                val turntableTurn = tv * (tx / 29.8 * 0.5).let { it.deadzoneOne(0.01) }
-                turntable.set(turntableTurn)
-            } else {
-                // TODO: Naive radar sweep around 210 deg range if target not found 
-                // turntable.set(-turntable.encoder.position / 30)
-            }
-        }
+        //     if (tv == 1.0) {
+        //         val turntableTurn = tv * (tx / 29.8 * 0.5).let { it.deadzoneOne(0.01) }
+        //         turntable.set(turntableTurn)
+        //     } else {
+        //         // TODO: Naive radar sweep around 210 deg range if target not found 
+        //         // turntable.set(-turntable.encoder.position / 30)
+        //     }
+        // }
 
-        shooterTop.set(topSpeed!!.getDouble(0.0));
-        shooterBottom.set(bottomSpeed!!.getDouble(0.0));
+        // topSpeed = topSpeedSlider!!.getDouble(0.0);
+        // bottomSpeed = bottomSpeedSlider!!.getDouble(0.0);
 
-        // If save button pressed, write to CSV and reset to unpressed
-        if (saveButton!!.getBoolean(false)) {
-            saveButton!!.forceSetBoolean(false)
-            writer.write("$topSpeed,$bottomSpeed")
-            writer.flush()
-        }
+        // // If save button pressed, write to CSV and reset to unpressed
+        // if (saveButton!!.getBoolean(false)) {
+        //     saveButton!!.forceSetBoolean(false)
+        //     // writer.write("$topSpeed,$bottomSpeed")
+        //     // writer.flush()
+        // }
     }
 
     override fun testInit() {

@@ -1,0 +1,15 @@
+Right Trigger: Spin Intake 
+AButton: Toggle Intake Direction(default inwards)
+LeftButton: Change Mode
+
+IN AUTOMATIC MODE:
+    Left Trigger: Shooter Speed & Automatic Colon Trigger
+
+IN MANUAL SHOOTER MODE:
+    Left Trigger: Shooter Speed
+    XButton: lower shooter ratio
+    BButton: increase shooter ratio
+    Right Joystick X Axis: Turn Shooter
+    Right Bumper: Spin Colon upwards
+    Left Bumper: Spin Colon Downwards
+    Y button: reverse intake lift
