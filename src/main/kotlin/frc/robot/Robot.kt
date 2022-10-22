@@ -5,9 +5,16 @@ import kotlin.math.*
 import edu.wpi.first.wpilibj.TimedRobot
 import edu.wpi.first.wpilibj.XboxController
 import edu.wpi.first.wpilibj.drive.Vector2d
+import edu.wpi.first.wpilibj.Filesystem
+import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard
 import edu.wpi.first.networktables.NetworkTableInstance
+import edu.wpi.first.networktables.NetworkTableEntry
+import edu.wpi.first.math.trajectory.TrajectoryUtil
+import edu.wpi.first.math.trajectory.Trajectory
 import io.javalin.websocket.WsContext
 import java.util.concurrent.ConcurrentHashMap
+import java.io.IOException
 import com.ctre.phoenix.sensors.Pigeon2
 import io.javalin.Javalin
 
@@ -46,8 +53,33 @@ class Robot : TimedRobot() {
     var rightMode = StickMode.TURNTABLE
     val xButtonLastPressed = false
 
-    override fun teleopInit() {}
+    var topSpeed:NetworkTableEntry? = null;
+    var bottomSpeed:NetworkTableEntry? = null;
+    var saveButton:NetworkTableEntry? = null;
+    val trajectoryJSON = "resources/paths/topBlue.wpilib.json"
+    var trajectory:Trajectory? = Trajectory()
+
+    override fun teleopInit() {
+
+    }
     override fun teleopPeriodic() {
+        val trajectory = null
+        try {
+            val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
+            trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
+
+        } catch (err: IOException) {
+            error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
+        }
+        val tab = Shuffleboard.getTab("Test");
+        topSpeed = tab.add("topSpeed", 1).withWidget(BuiltInWidgets.kNumberSlider)
+                   .getEntry();
+        bottomSpeed =
+                tab.add("bottomSpeed", 2).withWidget(BuiltInWidgets.kNumberSlider)
+                   .getEntry();
+
+        saveButton =
+                tab.add("Save Speed", 3).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
         val speed = controller.leftX.pow(3.0)
         val turn = controller.leftY.pow(3.0)
         drivetrain.drive(speed, turn)
@@ -73,9 +105,12 @@ class Robot : TimedRobot() {
                 shooterBottom.set(controller.rightTriggerAxis.pow(3.0) / ratio)
             }
         }
+        drivetrain.drive(speed, turn)
+        shooterTop.set(topSpeed!!.getDouble(0.0));
+        shooterBottom.set(bottomSpeed!!.getDouble(0.0));
+        if(saveButton!!.getBoolean(false)){
+            saveButton!!.forceSetBoolean(false)
+        }
     }
 
-    override fun testInit() {}
-    override fun testPeriodic() {
-   }
 }
