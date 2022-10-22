@@ -3,7 +3,7 @@ package frc.robot
 import kotlin.math.*
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics
 
-object Constants { 
+public object Constants { 
     val WHEEL_CIRCUMFERENCE_INCHES = PI * 7.0.pow(2.0)
 
     val TRACK_WIDTH_METERS = 0.69

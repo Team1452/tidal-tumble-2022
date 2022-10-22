@@ -7,7 +7,11 @@ import edu.wpi.first.wpilibj.TimedRobot
 import edu.wpi.first.wpilibj.XboxController
 import edu.wpi.first.wpilibj.drive.Vector2d
 import edu.wpi.first.wpilibj.Filesystem
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard
 import edu.wpi.first.networktables.NetworkTableInstance
+import edu.wpi.first.networktables.NetworkTableEntry
 import edu.wpi.first.math.trajectory.TrajectoryUtil
 import edu.wpi.first.math.trajectory.Trajectory
 import io.javalin.websocket.WsContext
@@ -64,6 +68,8 @@ class TestRobot : TimedRobot(20.0/1000.0) {
     // val trajectoryJSON = "resources/paths/topBlue.wpilib.json"
     // var trajectory = Trajectory()
 
+    var topSpeed:NetworkTableEntry? = null;
+    var bottomSpeed:NetworkTableEntry? = null;
     override fun robotInit() {
         // try {
         //     val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
