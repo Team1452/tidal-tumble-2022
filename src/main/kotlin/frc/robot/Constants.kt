@@ -16,7 +16,7 @@ object Constants {
 
     object Auto {
     }
-        
+
     object Test {
         val LEFT_MOTOR = 6
         val RIGHT_MOTOR = 7

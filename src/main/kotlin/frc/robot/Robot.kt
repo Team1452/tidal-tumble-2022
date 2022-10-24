@@ -23,6 +23,7 @@ import com.revrobotics.CANSparkMaxLowLevel.*
 import edu.wpi.first.wpilibj.DoubleSolenoid
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value.*
 import edu.wpi.first.wpilibj.PneumaticsModuleType
+import edu.wpi.first.wpilibj.Compressor
 import edu.wpi.first.wpilibj2.command.CommandScheduler
 import edu.wpi.first.wpilibj2.command.RamseteCommand
 import edu.wpi.first.math.controller.PIDController
@@ -82,7 +83,7 @@ class Robot : TimedRobot(Constants.PERIOD) {
     // }.start(7070)
 
     val intake = brushlessMotor(Constants.Real.INTAKE)
-    var intakeIsForward = false
+    var intakeIsForward = true
 
     val colon = brushlessMotor(Constants.Real.COLON)
     val shooterTop = brushlessMotor(Constants.Real.SHOOTER_TOP)
@@ -105,46 +106,59 @@ class Robot : TimedRobot(Constants.PERIOD) {
     var trajectory = Trajectory()
 
     override fun robotInit() {
+        val pcmCompressor = Compressor(0, PneumaticsModuleType.CTREPCM)
+        pcmCompressor.disable()
 
-    }
-
-
-    override fun teleopInit() {
         val tab = Shuffleboard.getTab("Test");
         topSpeedSlider = tab.add("topSpeed", 1).withWidget(BuiltInWidgets.kNumberSlider).getEntry();
         bottomSpeedSlider = tab.add("bottomSpeed", 2).withWidget(BuiltInWidgets.kNumberSlider).getEntry();
         saveButton = tab.add("Save Speed", 3).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
     }
+
+    var speedConfigMode = false
+
+    override fun teleopInit() { }
     override fun teleopPeriodic() {
         val speed = controller.leftX.pow(3.0)
         val turn = controller.leftY.pow(3.0)
-        drive.drive(speed, turn)
+        drive.drive(speed, -turn)
 
         // Right trigger controls intake speed, A button to reverse
         val intakeSpeed = controller.rightTriggerAxis.pow(3.0)
-        if (controller.aButton) intakeIsForward = !intakeIsForward
+        if (controller.aButtonPressed) intakeIsForward = !intakeIsForward
         intake.set(if (intakeIsForward) intakeSpeed else -intakeSpeed)
 
-        println("ratio $ratio")
-
         // Left trigger for shooter speed, X/B to decrease/increase ratio
-        if (controller.xButtonPressed) ratio -= 1.0
-        if (controller.bButtonPressed) ratio += 1.0
+        if (controller.xButtonPressed) {
+            if (speedConfigMode)
+                topSpeed += 0.05
+            else
+                topSpeed -= 0.05
+            println("topSpeed $topSpeed")
+        }
+        if (controller.bButtonPressed) {
+            if (speedConfigMode)
+                bottomSpeed += 0.05
+            else
+                bottomSpeed -= 0.05
+            println("bottomSpeed $bottomSpeed")
+        }
 
-        val shooterSpeed = -controller.leftTriggerAxis.pow(3.0)
-        shooterTop.set(shooterSpeed * ratio)
-        shooterBottom.set(shooterSpeed/(ratio * 0.5))
+        shooterTop.set(topSpeed)
+        shooterBottom.set(bottomSpeed)
 
         // Right x axis for turntable
         turntable.set(controller.rightX.deadzoneOne(0.05))
 
         // Left bumper to spin colon upwards, right for down
-        if (controller.leftBumper)
+        if (controller.leftBumper) {
             colon.set(-1.0)
-        else if (controller.rightBumper)
-            colon.set(1.0)
-        else
+        } else {
             colon.set(0.0)
+        }
+
+        if (controller.rightBumperPressed)
+            speedConfigMode = !speedConfigMode
         
         if (controller.yButtonPressed) {
             leftSolenoid.set(when (leftSolenoid.get()) {
