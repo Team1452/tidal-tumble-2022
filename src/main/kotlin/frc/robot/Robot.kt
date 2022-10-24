@@ -36,7 +36,6 @@ import frc.robot.main
 fun Double.deadzoneOne(threshold: Double): Double = sign(this) * max(0.0, abs(this) - threshold) / (1.0-threshold)
 
 class Robot : TimedRobot(Constants.PERIOD) {
-
     val limelightTable = NetworkTableInstance.getDefault().getTable("limelight")
 
     val controller = XboxController(0)
@@ -133,7 +132,7 @@ class Robot : TimedRobot(Constants.PERIOD) {
             colon.set(-1.0)
         else
             colon.set(0.0)
-        
+
         println("left bumper: ${controller.leftBumperPressed}, ${controller.leftBumperReleased}")
         if (controller.rightBumper) {
             println("Opening left/right solenoids")
@@ -144,7 +143,7 @@ class Robot : TimedRobot(Constants.PERIOD) {
             leftSolenoid.set(kReverse)
             rightSolenoid.set(kReverse)
         }
-        
+
         if (centering) {
             val tv = limelightTable.getEntry("tv").getDouble(0.0)
             val tx = limelightTable.getEntry("tx").getDouble(0.0)
