@@ -1,20 +1,5 @@
 <div style="display: flex; width: 100vw; height: 100vh; flex-direction: column; justify-content: center; align-items: center; height: 100vh;">
-    <style>
-        body {
-            animation: anim 1s infinite;
-        }
-
-        @keyframes anim {
-            0% { background: #f00; transform: rotate(0deg); } 
-            20% { background: #0f0; } 
-            40% { background: #00f; transform: rotate(-10deg); } 
-            60% { background: #abf; } 
-            80% { background: #23f; } 
-            100% { background: #854; transform: rotate(10deg); } 
-        }
-    </style>
-
-    <h1>Robobot shooter!1!!!!!!</h1>
+    <h1>Robot Shooter>
     <div style="display: flex; flex-direction: row;">
         <div>
             <span>Bottom Speed</span> 
@@ -46,4 +31,15 @@ socket.addEventListener('open', event => {
     socket.send('Hello Server!');
     console.log('connected to socket')
 })
+
+socket.addEventListener('message', event => {
+    console.log('Message from socket:', event.data)
+    if (event.data == 'CONFIG_UPDATED') {
+        alert('Updated config')
+    }
+})
+
+
+
+
 </script>

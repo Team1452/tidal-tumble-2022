@@ -65,8 +65,8 @@ class Robot : TimedRobot(Constants.PERIOD) {
         writer.flush()
     }
 
-    val bottomSpeed = 0.0
-    val upperSpeed = 0.0
+    var bottomSpeed = 0.0
+    var upperSpeed = 0.0
 
     var app = Javalin.create().apply {
         ws("/shooter") { ws -> 
