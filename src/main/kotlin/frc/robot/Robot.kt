@@ -38,6 +38,20 @@ import frc.robot.main
 
 fun Double.deadzoneOne(threshold: Double): Double = sign(this) * max(0.0, abs(this) - threshold) / (1.0-threshold)
 
+enum Direction {
+    FORWARD, BACKWARD,
+
+    fun toggle(): Direction = when (this) {
+        FORWARD -> BACKWARD
+        BACKWARD -> FORWARD
+    }
+
+    fun sign(): Double = when (this) {
+        FORWARD -> 1.0
+        BACKWARD -> -1.0
+    }
+}
+
 class Robot : TimedRobot(Constants.PERIOD) {
 
     val limelightTable = NetworkTableInstance.getDefault().getTable("limelight")
@@ -83,9 +97,13 @@ class Robot : TimedRobot(Constants.PERIOD) {
     // }.start(7070)
 
     val intake = brushlessMotor(Constants.Real.INTAKE)
-    var intakeIsForward = true
+    var intakeDirection = Direction.FORWARD
 
     val colon = brushlessMotor(Constants.Real.COLON)
+
+    val climb = brushlessMotor(Constants.Real.CLIMB)
+    var climbDirection = Direction.FORWARD
+
     val shooterTop = brushlessMotor(Constants.Real.SHOOTER_TOP)
     val shooterBottom = brushlessMotor(Constants.Real.SHOOTER_BOTTOM)
 
@@ -105,6 +123,9 @@ class Robot : TimedRobot(Constants.PERIOD) {
     val trajectoryJSON = "resources/paths/topBlue.wpilib.json"
     var trajectory = Trajectory()
 
+    var speedConfigMode = false
+
+
     override fun robotInit() {
         val pcmCompressor = Compressor(0, PneumaticsModuleType.CTREPCM)
         pcmCompressor.disable()
@@ -115,20 +136,22 @@ class Robot : TimedRobot(Constants.PERIOD) {
         saveButton = tab.add("Save Speed", 3).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
     }
 
-    var speedConfigMode = false
-
     override fun teleopInit() { }
     override fun teleopPeriodic() {
         val speed = controller.leftX.pow(3.0)
         val turn = controller.leftY.pow(3.0)
         drive.drive(speed, -turn)
 
+        val climbSpeed = controller.leftTriggerAxis.pow(3.0)
+        if (controller.rightStickButtonPressed) climbDirection = climbDirection.toggle()
+        climb.set(climbDirection.sign() * climbSpeed)
+
         // Right trigger controls intake speed, A button to reverse
         val intakeSpeed = controller.rightTriggerAxis.pow(3.0)
-        if (controller.aButtonPressed) intakeIsForward = !intakeIsForward
-        intake.set(if (intakeIsForward) intakeSpeed else -intakeSpeed)
+        if (controller.aButtonPressed) intakeDirection = intakeDirection.toggle()
+        intake.set(intakeDirection.sign() * intakeSpeed)
 
-        // Left trigger for shooter speed, X/B to decrease/increase ratio
+        // X/B to decrease/increase ratio
         if (controller.xButtonPressed) {
             if (speedConfigMode)
                 topSpeed += 0.05
