@@ -3,5 +3,5 @@ package frc.robot
 import edu.wpi.first.wpilibj.RobotBase
 
 fun main() {
-    RobotBase.startRobot(::TestRobot)
+    RobotBase.startRobot(::Robot)
 }

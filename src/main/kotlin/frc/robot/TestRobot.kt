@@ -10,21 +10,28 @@ import edu.wpi.first.wpilibj.Filesystem
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard
+import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets
 import edu.wpi.first.networktables.NetworkTableInstance
 import edu.wpi.first.networktables.NetworkTableEntry
 import edu.wpi.first.math.trajectory.TrajectoryUtil
 import edu.wpi.first.math.trajectory.Trajectory
+import edu.wpi.first.math.controller.RamseteController
+import edu.wpi.first.math.controller.SimpleMotorFeedforward
+import edu.wpi.first.math.controller.PIDController
 import io.javalin.websocket.WsContext
 import java.util.concurrent.ConcurrentHashMap
 import java.io.IOException
 import com.ctre.phoenix.sensors.Pigeon2
+import com.revrobotics.CANSparkMax
 import io.javalin.Javalin
 import edu.wpi.first.wpilibj.DoubleSolenoid
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value.*
 import edu.wpi.first.wpilibj.PneumaticsModuleType
+import edu.wpi.first.wpilibj2.command.RamseteCommand
+import edu.wpi.first.wpilibj2.command.Command
 
 import frc.robot.Constants
-import frc.robot.Drivetrain
+import frc.robot.subsystems.DriveSubsystem
 
 // class TestRobot : TimedRobot(Constants.PERIOD) {
 class TestRobot : TimedRobot(20.0/1000.0) {
@@ -34,10 +41,15 @@ class TestRobot : TimedRobot(20.0/1000.0) {
         val PIGEON = 10
     }
 
-    val limelightTable = NetworkTableInstance.getDefault().getTable("limelight")
+    // val limelightTable = NetworkTableInstance.getDefault().getTable("limelight")
 
     val controller = XboxController(0)
     // val drivetrain = Drivetrain(LEFT_MOTOR, RIGHT_MOTOR)
+    val drive = DriveSubsystem(
+        listOf(brushlessMotor(Constants.Test.LEFT_MOTOR)),
+        listOf(brushlessMotor(Constants.Test.RIGHT_MOTOR)),
+        Pigeon2(Constants.Test.PIGEON)
+    )
 
     var direction = Vec2(0.0, 0.0)
     var position = Vec2(0.0, 0.0)
@@ -45,84 +57,57 @@ class TestRobot : TimedRobot(20.0/1000.0) {
 
     val pigeon2 = Pigeon2(PIGEON)
 
-    val leftSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, 6, 7)
-    val rightSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, 0, 1)
+    // val leftSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, 6, 7)
+    // val rightSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, 0, 1)
 
-    // val positionWSObservers: ConcurrentHashMap<String, WsContext> = ConcurrentHashMap<String, WsContext>()
-    // var app = Javalin.create().apply {
-    //     ws("/position") { ws -> 
-    //         ws.onConnect { ctx -> 
-    //             positionWSObservers[ctx.sessionId] = ctx
-    //             println("New websocket connected: $ctx")
-    //         }
-    //         ws.onClose { ctx -> 
-    //             positionWSObservers.remove(ctx.sessionId)
-    //             println("Websocket closed: $ctx")
-    //         }
-    //         ws.onMessage { ctx -> 
-    //             ctx.session.remote.sendString("Echo: ${ctx.message()}")
-    //         }
-    //     }
-    // }.start(7070)
+    val trajectoryJSON = "resources/paths/topBlue.wpilib.json"
+    var trajectory = Trajectory()
 
-    // val trajectoryJSON = "resources/paths/topBlue.wpilib.json"
-    // var trajectory = Trajectory()
-
-    var topSpeed:NetworkTableEntry? = null;
-    var bottomSpeed:NetworkTableEntry? = null;
     override fun robotInit() {
-        // try {
-        //     val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
-        //     trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
-        // } catch (err: IOException) {
-        //     error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
-        // }
+        try {
+            val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
+            trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
+        } catch (err: IOException) {
+            error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
+        }
     }
 
     override fun teleopInit() {}
     override fun teleopPeriodic() {
-        // val speed = controller.leftX.pow(3.0)
-        // val turn = controller.leftY.pow(3.0)
-        // drivetrain.drive(speed, turn)
+        val speed = controller.leftX.pow(3.0)
+        val turn = controller.leftY.pow(3.0)
+        drive.arcadeDrive(speed, turn)
     }
 
     override fun testInit() {}
     override fun testPeriodic() {
-        println("Toggling double solenoid: ${leftSolenoid.get().name}")
-
-        val mode = when (leftSolenoid.get()) {
-            DoubleSolenoid.Value.kOff -> DoubleSolenoid.Value.kForward
-            DoubleSolenoid.Value.kForward -> DoubleSolenoid.Value.kReverse
-            DoubleSolenoid.Value.kReverse -> DoubleSolenoid.Value.kForward
-            null -> throw Error("solenoid.get() returned null")
+        try {
+            val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
+            trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
+        } catch (err: IOException) {
+            error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
         }
 
-        println("Setting to ${mode.name}")
+        val ramseteCommand = RamseteCommand(
+            trajectory,
+            drive::getPose,
+            RamseteController(Constants.Test.Auto.RAMSETE_B, Constants.Test.Auto.RAMSETE_ZETA),
+            SimpleMotorFeedforward(
+                Constants.Test.Auto.KS_VOLTS,
+                Constants.Test.Auto.KV_VOLT_SECONDS_PER_METER,
+                Constants.Test.Auto.KA_VOLT_SECONDS_SQUARED_PER_METER
+            ),
+            Constants.DRIVE_KINEMATICS,
+            drive::getWheelSpeeds,
+            PIDController(Constants.Test.Auto.P_DRIVE_VEL, 0.0, 0.0),
+            PIDController(Constants.Test.Auto.P_DRIVE_VEL, 0.0, 0.0),
+            drive::tankDriveVolts,
+            drive
+        )
 
-        leftSolenoid.set(mode)
-        rightSolenoid.set(mode)
+        drive.resetOdometry(trajectory.initialPose!!)
 
-
-        // Control
-        // val speed = controller.leftX.pow(3.0)
-        // val turn = controller.leftY.pow(3.0)
-        // drivetrain.drive(speed, turn)
-
-        // Positioning
-        // val yawRad = pigeon2.yaw * PI/180.0
-        // direction = Vec2(sin(yawRad), cos(yawRad))
-
-        // val displacement = (drivetrain.left.encoder.position + drivetrain.right.encoder.position)/2.0 * (PI * 7.0.pow(2))
-        // position += (displacement - lastDisplacement) * direction
-        // lastDisplacement = displacement
-
-        // positionWSObservers.values.forEach { it.session.remote.sendString("${position.x}, ${position.y}, ${pigeon2.yaw}") }
-
-        // Limelight
-        // val tv = limelightTable.getEntry("tv").getDouble(0.0)
-        // val tx = limelightTable.getEntry("tx").getDouble(0.0)
-
-        // val turn = tv * (tx / 29.8 * 0.5).let { if (abs(it) > 0.05) it else 0.0 }
-        // drivetrain.drive(0.0, turn)
+        // TODO: Pass command properly
+        // ramseteCommand.andThen(Command(() -> drive.tankDriveVolts(0.0, 0.0)))
     }
 }
