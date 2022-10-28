@@ -64,48 +64,48 @@ class TestRobot : TimedRobot(20.0/1000.0) {
     var trajectory = Trajectory()
 
     override fun robotInit() {
-        try {
-            val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
-            trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
-        } catch (err: IOException) {
-            error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
-        }
+        // try {
+        //     val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
+        //     trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
+        // } catch (err: IOException) {
+        //     error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
+        // }
     }
 
     override fun teleopInit() {}
     override fun teleopPeriodic() {
-        val speed = controller.leftX.pow(3.0)
-        val turn = controller.leftY.pow(3.0)
+        val speed = controller.leftY.pow(3.0)
+        val turn = controller.leftX.pow(3.0)
         drive.arcadeDrive(speed, turn)
     }
 
     override fun testInit() {}
     override fun testPeriodic() {
-        try {
-            val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
-            trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
-        } catch (err: IOException) {
-            error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
-        }
+        // try {
+        //     val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
+        //     trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
+        // } catch (err: IOException) {
+        //     error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
+        // }
 
-        val ramseteCommand = RamseteCommand(
-            trajectory,
-            drive::getPose,
-            RamseteController(Constants.Test.Auto.RAMSETE_B, Constants.Test.Auto.RAMSETE_ZETA),
-            SimpleMotorFeedforward(
-                Constants.Test.Auto.KS_VOLTS,
-                Constants.Test.Auto.KV_VOLT_SECONDS_PER_METER,
-                Constants.Test.Auto.KA_VOLT_SECONDS_SQUARED_PER_METER
-            ),
-            Constants.DRIVE_KINEMATICS,
-            drive::getWheelSpeeds,
-            PIDController(Constants.Test.Auto.P_DRIVE_VEL, 0.0, 0.0),
-            PIDController(Constants.Test.Auto.P_DRIVE_VEL, 0.0, 0.0),
-            drive::tankDriveVolts,
-            drive
-        )
+        // val ramseteCommand = RamseteCommand(
+        //     trajectory,
+        //     drive::getPose,
+        //     RamseteController(Constants.Test.Auto.RAMSETE_B, Constants.Test.Auto.RAMSETE_ZETA),
+        //     SimpleMotorFeedforward(
+        //         Constants.Test.Auto.KS_VOLTS,
+        //         Constants.Test.Auto.KV_VOLT_SECONDS_PER_METER,
+        //         Constants.Test.Auto.KA_VOLT_SECONDS_SQUARED_PER_METER
+        //     ),
+        //     Constants.DRIVE_KINEMATICS,
+        //     drive::getWheelSpeeds,
+        //     PIDController(Constants.Test.Auto.P_DRIVE_VEL, 0.0, 0.0),
+        //     PIDController(Constants.Test.Auto.P_DRIVE_VEL, 0.0, 0.0),
+        //     drive::tankDriveVolts,
+        //     drive
+        // )
 
-        drive.resetOdometry(trajectory.initialPose!!)
+        // drive.resetOdometry(trajectory.initialPose!!)
 
         // TODO: Pass command properly
         // ramseteCommand.andThen(Command(() -> drive.tankDriveVolts(0.0, 0.0)))

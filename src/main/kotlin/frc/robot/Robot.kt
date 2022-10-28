@@ -37,9 +37,10 @@ import frc.robot.Constants
 import frc.robot.main
 
 fun Double.deadzoneOne(threshold: Double): Double = sign(this) * max(0.0, abs(this) - threshold) / (1.0-threshold)
+fun Double.clamp(minValue: Double, maxValue: Double): Double = min(max(this, minValue), maxValue)
 
-enum Direction {
-    FORWARD, BACKWARD,
+enum class Direction {
+    FORWARD, BACKWARD;
 
     fun toggle(): Direction = when (this) {
         FORWARD -> BACKWARD
@@ -90,7 +91,7 @@ class Robot : TimedRobot(Constants.PERIOD) {
     //         ws.onMessage { ctx -> 
     //             bottomSpeed = ctx.message().substringBefore(',').toDouble()
     //             topSpeed = ctx.message().substringAfter(',').toDouble()
-    //             // ctx.session.remote.sendString("Echo: ${ctx.message()}")
+    //             ctx.session.remote.sendString("CONFIG_UPDATED")
     //         }
     //     }
     // }.start(7070)
@@ -124,9 +125,13 @@ class Robot : TimedRobot(Constants.PERIOD) {
 
     var speedConfigMode = false
 
+    val DRIVE_ENABLED = false
+
+    val pcmCompressor = Compressor(0, PneumaticsModuleType.CTREPCM)
+
+    var ticks = 0;
 
     override fun robotInit() {
-        val pcmCompressor = Compressor(0, PneumaticsModuleType.CTREPCM)
         pcmCompressor.disable()
 
         val tab = Shuffleboard.getTab("Test");
@@ -139,7 +144,8 @@ class Robot : TimedRobot(Constants.PERIOD) {
     override fun teleopPeriodic() {
         val speed = controller.leftX.pow(3.0)
         val turn = controller.leftY.pow(3.0)
-        drive.drive(speed, -turn)
+        if (DRIVE_ENABLED)
+            drive.drive(speed, -turn)
 
         val climbSpeed = controller.leftTriggerAxis.pow(3.0)
         if (controller.rightStickButtonPressed) climbDirection = climbDirection.toggle()
@@ -150,66 +156,54 @@ class Robot : TimedRobot(Constants.PERIOD) {
         if (controller.aButtonPressed) intakeDirection = intakeDirection.toggle()
         intake.set(intakeDirection.sign() * intakeSpeed)
 
-        // X/B to decrease/increase ratio
-        if (controller.xButtonPressed) {
-            if (speedConfigMode)
-                topSpeed += 0.05
-            else
-                topSpeed -= 0.05
-            println("topSpeed $topSpeed")
-        }
-        if (controller.bButtonPressed) {
-            if (speedConfigMode)
-                bottomSpeed += 0.05
-            else
-                bottomSpeed -= 0.05
-            println("bottomSpeed $bottomSpeed")
-        }
-
-<<<<<<< HEAD
-        // shooterTop.set((-controller.rightY.pow(3.0)) * (1.0 - ratio)))
-        // shooterBottom.set((-controller.rightY.pow(3.0)) * ratio))
         shooterTop.set(-bottomSpeed)
-        shooterBottom.set(-upperSpeed)
-        turntable.set(controller.rightX.deadzoneOne(0.1))
-=======
-        shooterTop.set(topSpeed)
-        shooterBottom.set(bottomSpeed)
->>>>>>> 5a4ff49cdc79334da4a5f4723ffe9d15b011a06d
+        shooterBottom.set(-topSpeed)
 
         // Right x axis for turntable
         turntable.set(controller.rightX.deadzoneOne(0.05))
 
         // Left bumper to spin colon upwards, right for down
-        if (controller.leftBumper) {
+        if (controller.leftBumperPressed) {
             colon.set(-1.0)
         } else {
             colon.set(0.0)
         }
-
-        if (controller.rightBumperPressed)
-            speedConfigMode = !speedConfigMode
         
-        if (controller.yButtonPressed) {
+        if (controller.xButtonPressed) {
             leftSolenoid.set(when (leftSolenoid.get()) {
                 DoubleSolenoid.Value.kOff, null -> DoubleSolenoid.Value.kForward
                 DoubleSolenoid.Value.kForward -> DoubleSolenoid.Value.kReverse
                 DoubleSolenoid.Value.kReverse -> DoubleSolenoid.Value.kReverse
             })
         }
-        
-        // if (centering) {
-        //     val tv = limelightTable.getEntry("tv").getDouble(0.0)
-        //     val tx = limelightTable.getEntry("tx").getDouble(0.0)
 
-        //     if (tv == 1.0) {
-        //         val turntableTurn = tv * (tx / 29.8 * 0.5).let { it.deadzoneOne(0.01) }
-        //         turntable.set(turntableTurn)
-        //     } else {
-        //         // TODO: Naive radar sweep around 210 deg range if target not found 
-        //         // turntable.set(-turntable.encoder.position / 30)
-        //     }
-        // }
+        if (controller.bButtonPressed)
+            centering = !centering
+        
+        println("Centering: $centering")
+
+        ticks++
+        
+        if (centering) {
+            val tv = limelightTable.getEntry("tv").getDouble(0.0)
+            val tx = limelightTable.getEntry("tx").getDouble(0.0)
+
+            println("Centering: tv: $tv, tx: $tx")
+
+            if (tv == 1.0) {
+                val turntableTurn = tv * (tx / 29.8 * 0.5).let { it.deadzoneOne(0.01) }
+                turntable.set(turntableTurn)
+            } else {
+                // TODO: Naive radar sweep around 210 deg range if target not found 
+                val turntableSpeed = (turntable.encoder.position / 60.0).clamp(-0.4, 0.4)
+                println("Sweeping, speed: $turntableSpeed")
+                // Turn clockwise for 50 ticks then counterclockwise for 50 ticks
+                // if ((ticks % 100) > 50)
+                //     turntable.set(0.1)
+                // else
+                //     turntable.set(-0.1)
+            }
+        }
 
         // topSpeed = topSpeedSlider!!.getDouble(0.0);
         // bottomSpeed = bottomSpeedSlider!!.getDouble(0.0);
@@ -222,36 +216,25 @@ class Robot : TimedRobot(Constants.PERIOD) {
         // }
     }
 
+    var solenoidMode = kForward;
+
     override fun testInit() {
-        // try {
-        //     val trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON)
-        //     trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath)
-        // } catch (err: IOException) {
-        //     error("Unable to open trajectory: $trajectoryJSON, ${err.getStackTrace()}")
-        // }
-
-        // val ramseteCommand = RamseteCommand(
-        //     trajectory,
-        //     drive::getPose,
-        //     RamseteController(Auto.RAMSETE_B, Constants.Auto.RAMSETE_B),
-        //     SimpleMotorFeedforward(
-        //         KS_VOLTS,
-        //         KV_VOLT_SECONDS_PER_METER,
-        //         KA_VOLT_SECONDS_SQUARED_PER_METER
-        //     ),
-        //     DRIVE_KINEMATICS,
-        //     drive::getWheelSpeeds,
-        //     PIDController(P_DRIVE_VEL, 0.0, 0.0),
-        //     PIDController(P_DRIVE_VEL, 0.0, 0.0),
-        //     drive::tankDriveVolts,
-        //     drive
-        // )
-
-        // drive.resetOdometry(trajectory.initialPose)
-
-        // ramseteCommand.andThen(() -> drive.tankDriveVolts(0, 0))
     }
     override fun testPeriodic() {
-        CommandScheduler.getInstance().run()
+        if (controller.leftBumperPressed) {
+            solenoidMode = when (solenoidMode) {
+                kForward -> kReverse
+                else -> kForward
+            }
+            leftSolenoid.set(solenoidMode)
+        } else if (controller.rightBumperPressed) {
+            leftSolenoid.set(kOff)
+        }
+        if (controller.aButtonPressed) {
+            pcmCompressor.enableDigital()
+        } else if (controller.bButtonPressed) {
+            pcmCompressor.disable()
+        }
+        println("Left solenoid: ${leftSolenoid.get().name}")
     }
 }

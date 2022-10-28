@@ -14,9 +14,6 @@ public object Constants {
 
     val COMMAND_SCHEDULER_PERIOD_SECONDS = 20/1000
 
-    object Auto {
-    }
-
     object Test {
         val LEFT_MOTOR = 6
         val RIGHT_MOTOR = 7
@@ -41,6 +38,7 @@ public object Constants {
     object Real {
         // TODO: Solenoid ports
         val PCM = 0
+
         val LEFT_SOLENOID_1 = 4
         val LEFT_SOLENOID_2 = 5
 
