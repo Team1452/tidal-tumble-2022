@@ -35,16 +35,33 @@ const socket = new WebSocket('ws://10.14.52.2:7070/shooter');
 const upper = document.getElementById('upper-speed-input')
 const bottom = document.getElementById('bottom-speed-input')
 const configureBtn = document.getElementById('configure-btn')
+const intakeSpeed = document.getElementById('intake-speed-input')
+const pressure = document.getElementById('pressure-input')
 
-configureBtn.onclick = () => {
+function configure() {
     console.log(`sending new config: ${bottom.value},${upper.value}`)
-    if (socket.open) socket.send(`${bottom.value},${upper.value}`)
+    socket.send(`${bottom.value},${upper.value}`)
 }
 
-socket.addEventListener('open', event => {
-    socket.send('Hello Server!');
-    console.log('connected to socket')
-})
+configureBtn.onclick = () => {
+    configure()
+}
+
+upper.onchange = () => {
+    configure()
+}
+
+bottom.onchange = () => {
+    configure()
+}
+
+// socket.addEventListener('close', event => {
+//     console.log('Socket close')
+// })
+
+// socket.addEventListener('open', event => {
+//     console.log('connected to socket')
+// })
 
 socket.addEventListener('message', event => {
     console.log('Message from socket:', event.data)

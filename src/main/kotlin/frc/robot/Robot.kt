@@ -80,21 +80,28 @@ class Robot : TimedRobot(Constants.PERIOD) {
     var topSpeed = 0.0
     var bottomSpeed = 0.0
 
-    // var app = Javalin.create().apply {
-    //     ws("/shooter") { ws -> 
-    //         ws.onConnect { ctx -> 
-    //             println("New websocket connected: $ctx")
-    //         }
-    //         ws.onClose { ctx -> 
-    //             println("Websocket closed: $ctx")
-    //         }
-    //         ws.onMessage { ctx -> 
-    //             bottomSpeed = ctx.message().substringBefore(',').toDouble()
-    //             topSpeed = ctx.message().substringAfter(',').toDouble()
-    //             ctx.session.remote.sendString("CONFIG_UPDATED")
-    //         }
-    //     }
-    // }.start(7070)
+    var app = Javalin.create().apply {
+        ws("/shooter") { ws -> 
+            ws.onConnect { ctx -> 
+                println("New websocket connected: $ctx")
+            }
+            ws.onClose { ctx -> 
+                println("Websocket closed: $ctx")
+            }
+            ws.onMessage { ctx -> 
+                try {
+                    val _bottomSpeed = ctx.message().substringBefore(',').toDouble()
+                    val _topSpeed = ctx.message().substringAfter(',').toDouble()
+                    bottomSpeed = _bottomSpeed
+                    topSpeed = _topSpeed
+                    ctx.session.remote.sendString("CONFIG_UPDATED")
+                    println("Received message from websocket: '${ctx.message()}', bottom speed: $bottomSpeed, top speed: $topSpeed")
+                } catch (err: Exception) {
+                    println("Malformed ws input: ${err.message}, error: ${err.message}") 
+                }
+            }
+        }
+    }.start(7070)
 
     val intake = brushlessMotor(Constants.Real.INTAKE)
     var intakeDirection = Direction.FORWARD
@@ -114,8 +121,6 @@ class Robot : TimedRobot(Constants.PERIOD) {
     var ratio: Double = Constants.Real.SHOOTER_BOTTOM_GEAR_RATIO 
     val scheduler = Scheduler()
     val leftSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, Constants.Real.LEFT_SOLENOID_1, Constants.Real.LEFT_SOLENOID_2);
-    // val rightSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, Constants.Real.RIGHT_SOLENOID_1, Constants.Real.RIGHT_SOLENOID_2);
-
     var topSpeedSlider: NetworkTableEntry? = null;
     var bottomSpeedSlider: NetworkTableEntry? = null;
     var saveButton: NetworkTableEntry? = null;
@@ -125,11 +130,11 @@ class Robot : TimedRobot(Constants.PERIOD) {
 
     var speedConfigMode = false
 
-    val DRIVE_ENABLED = false
-
     val pcmCompressor = Compressor(0, PneumaticsModuleType.CTREPCM)
 
     var ticks = 0;
+
+    val pigeon = Pigeon2(Constants.Real.PIGEON)
 
     override fun robotInit() {
         pcmCompressor.disable()
@@ -140,12 +145,48 @@ class Robot : TimedRobot(Constants.PERIOD) {
         saveButton = tab.add("Save Speed", 3).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
     }
 
-    override fun teleopInit() { }
+    var compressorOn = false
+    var turnTableRotations = 0.0
+
+    var acceleration = 0.0
+    var speed = 0.0
+
+    var direction = Vec2(0.0, 0.0)
+    var position = Vec2(0.0, 0.0)
+    var lastEncoderPosition = 0.0
+
+    override fun teleopInit() {
+        intake.set(1.0)
+    }
+
     override fun teleopPeriodic() {
-        val speed = controller.leftX.pow(3.0)
+        turnTableRotations = turntable.encoder.position
+        
+        acceleration = controller.leftX.pow(3.0) * 0.01
+        if (acceleration.absoluteValue < 0.01) {
+            speed -= speed/30.0
+        } else {
+            speed += acceleration
+        }
+
+        // val speed = controller.leftX.pow(3.0)
         val turn = controller.leftY.pow(3.0)
-        if (DRIVE_ENABLED)
-            drive.drive(speed, -turn)
+        drive.drive(speed, -turn)
+
+        if(ticks > 100){
+            intake.set(0.0)
+        }
+
+        val yaw = Math.toRadians(pigeon.yaw)
+        direction = Vec2(Math.acos(yaw), Math.asin(yaw))
+        val encoderPosition = (drive.left.encoder.position + drive.right.encoder.position)/2
+        val displacement = encoderPosition - lastEncoderPosition
+        lastEncoderPosition = encoderPosition
+        position = displacement * direction
+
+        if (ticks % 100 == 0)
+            println("Position: $position, direction: $direction, yaw: ${pigeon.yaw}, $yaw")
+        
 
         val climbSpeed = controller.leftTriggerAxis.pow(3.0)
         if (controller.rightStickButtonPressed) climbDirection = climbDirection.toggle()
@@ -163,45 +204,53 @@ class Robot : TimedRobot(Constants.PERIOD) {
         turntable.set(controller.rightX.deadzoneOne(0.05))
 
         // Left bumper to spin colon upwards, right for down
-        if (controller.leftBumperPressed) {
-            colon.set(-1.0)
+        if (controller.rightTriggerAxis > 0.05 && leftSolenoid.get() == kForward) {
+            colon.set(-0.7)
         } else {
             colon.set(0.0)
+        }
+        if (controller.yButtonPressed) {
+            compressorOn = !compressorOn
+            if (compressorOn)
+                pcmCompressor.enableDigital()
+            else
+                pcmCompressor.disable()
         }
         
         if (controller.xButtonPressed) {
             leftSolenoid.set(when (leftSolenoid.get()) {
                 DoubleSolenoid.Value.kOff, null -> DoubleSolenoid.Value.kForward
                 DoubleSolenoid.Value.kForward -> DoubleSolenoid.Value.kReverse
-                DoubleSolenoid.Value.kReverse -> DoubleSolenoid.Value.kReverse
+                DoubleSolenoid.Value.kReverse -> DoubleSolenoid.Value.kForward
             })
         }
 
         if (controller.bButtonPressed)
             centering = !centering
-        
-        println("Centering: $centering")
 
         ticks++
         
         if (centering) {
             val tv = limelightTable.getEntry("tv").getDouble(0.0)
             val tx = limelightTable.getEntry("tx").getDouble(0.0)
-
-            println("Centering: tv: $tv, tx: $tx")
-
+            
             if (tv == 1.0) {
                 val turntableTurn = tv * (tx / 29.8 * 0.5).let { it.deadzoneOne(0.01) }
                 turntable.set(turntableTurn)
             } else {
                 // TODO: Naive radar sweep around 210 deg range if target not found 
                 val turntableSpeed = (turntable.encoder.position / 60.0).clamp(-0.4, 0.4)
-                println("Sweeping, speed: $turntableSpeed")
                 // Turn clockwise for 50 ticks then counterclockwise for 50 ticks
-                // if ((ticks % 100) > 50)
-                //     turntable.set(0.1)
-                // else
-                //     turntable.set(-0.1)
+                if (Math.abs(turnTableRotations) > 0){
+                    
+                }
+                if (Math.abs(turnTableRotations) < 0){
+                    
+                }
+                if ((ticks % 100) > 50)
+                    turntable.set(0.1)
+                else
+                    turntable.set(-0.1)
             }
         }
 
@@ -236,5 +285,15 @@ class Robot : TimedRobot(Constants.PERIOD) {
             pcmCompressor.disable()
         }
         println("Left solenoid: ${leftSolenoid.get().name}")
+    }
+
+    override fun autonomousInit() {}
+    override fun autonomousPeriodic() {
+        if (ticks < 5000/Constants.PERIOD_MS)
+            drive.drive(-0.2, 0.0)
+        else
+            drive.drive(0.0, 0.0)
+
+        ticks++;
     }
 }

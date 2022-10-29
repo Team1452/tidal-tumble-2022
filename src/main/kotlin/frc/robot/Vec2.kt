@@ -14,6 +14,7 @@ class Vec2(val x: Double, val y: Double) {
         is Vec2 -> (this - other).norm() < 0.0001 // Inequality b/c weird floating point errors 
         else -> throw Exception("Tried to check equality of Vec2 with something other than a vector")
     }
+    override fun toString(): String = "<$x, $y>"
 
     fun dot(o: Vec2): Double = x * o.x + y * o.y
     fun norm(): Double = sqrt(x.pow(2.0) + y.pow(2.0))
