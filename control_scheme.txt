@@ -1,3 +1,34 @@
+leftY: speed
+leftX: turn
+
+leftTrigger: climb
+rightStickButton: switch climb direction
+
+rightTrigger: intake
+
+rightX: turntable
+rightTrigger: colon
+
+aButton: centering
+aButton: switch intak direction
+yButton: compressor
+xButton: solenoid
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Right Trigger: Spin Intake 
 AButton: Toggle Intake Direction(default inwards)
 LeftButton: Change Mode
