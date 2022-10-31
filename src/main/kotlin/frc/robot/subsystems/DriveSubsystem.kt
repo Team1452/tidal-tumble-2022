@@ -14,6 +14,7 @@ import edu.wpi.first.math.geometry.Pose2d
 import frc.robot.Constants
 
 fun Pigeon2.getRotation2d(): Rotation2d = Rotation2d(Math.toRadians(this.yaw))
+fun brushlessMotor(port: Int) = CANSparkMax(port, CANSparkMaxLowLevel.MotorType.kBrushless)
 
 class SparkGroupEncoder(val motors: List<CANSparkMax>) {
     val position: Double
@@ -35,10 +36,14 @@ class SparkGroupEncoder(val motors: List<CANSparkMax>) {
 }
 
 class DriveSubsystem(
-    val left: List<CANSparkMax>,
-    val right: List<CANSparkMax>,
+    val leftPorts: List<Int>,
+    val rightPorts: List<Int>,
     val pigeon: Pigeon2
 ) : SubsystemBase() {
+    val left = leftPorts.map { brushlessMotor(it) }
+    val right = rightPorts.map { brushlessMotor(it) }
+
+
     val odometry = DifferentialDriveOdometry(pigeon.getRotation2d())
 
     val leftEncoder = SparkGroupEncoder(left)
@@ -79,8 +84,8 @@ class DriveSubsystem(
     }
 
     fun arcadeDrive(forward: Double, rotation: Double) {
-        val leftSpeed = (forward + rotation) * maxOutput
-        val rightSpeed = (forward - rotation) * maxOutput
+        val leftSpeed = (-forward + rotation) * maxOutput
+        val rightSpeed = (-(-forward - rotation)) * maxOutput
 
         left.forEach { it.set(leftSpeed) }
         right.forEach { it.set(rightSpeed) }

@@ -2,298 +2,254 @@ package frc.robot
 
 import kotlin.math.*
 
+import frc.robot.main
+import frc.robot.subsystems.DriveSubsystem
+import io.javalin.Javalin
+import io.javalin.websocket.WsContext
+import edu.wpi.first.networktables.NetworkTableEntry
+import edu.wpi.first.networktables.NetworkTableInstance
 import edu.wpi.first.wpilibj.TimedRobot
 import edu.wpi.first.wpilibj.XboxController
-import edu.wpi.first.wpilibj.drive.Vector2d
-import edu.wpi.first.wpilibj.Filesystem
-import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets
-import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard
-import edu.wpi.first.networktables.NetworkTableInstance
-import edu.wpi.first.networktables.NetworkTableEntry
-import io.javalin.websocket.WsContext
-import java.util.concurrent.ConcurrentHashMap
-import java.io.IOException
-import java.io.FileWriter
-import com.ctre.phoenix.sensors.Pigeon2
-import io.javalin.Javalin
-import com.revrobotics.CANSparkMax
-import com.revrobotics.CANSparkMaxLowLevel
-import com.revrobotics.CANSparkMaxLowLevel.MotorType.*
-import com.revrobotics.CANSparkMaxLowLevel.*
-import edu.wpi.first.wpilibj.DoubleSolenoid
-import edu.wpi.first.wpilibj.DoubleSolenoid.Value.*
-import edu.wpi.first.wpilibj.PneumaticsModuleType
 import edu.wpi.first.wpilibj.Compressor
-import edu.wpi.first.wpilibj2.command.CommandScheduler
-import edu.wpi.first.wpilibj2.command.RamseteCommand
-import edu.wpi.first.math.controller.PIDController
-import edu.wpi.first.math.controller.RamseteController
-import edu.wpi.first.math.controller.SimpleMotorFeedforward
-import edu.wpi.first.math.trajectory.TrajectoryUtil
-import edu.wpi.first.math.trajectory.Trajectory
+import edu.wpi.first.wpilibj.PneumaticsModuleType
+import edu.wpi.first.wpilibj.DoubleSolenoid
+import edu.wpi.first.wpilibj.Solenoid
+import edu.wpi.first.cameraserver.CameraServer
+import com.ctre.phoenix.sensors.Pigeon2
+import com.revrobotics.CANSparkMax
+import java.util.concurrent.ConcurrentHashMap
+import java.nio.ByteBuffer
 
 import frc.robot.Drivetrain
 import frc.robot.Constants
-import frc.robot.main
+import org.opencv.core.Mat
 
-fun Double.deadzoneOne(threshold: Double): Double = sign(this) * max(0.0, abs(this) - threshold) / (1.0-threshold)
-fun Double.clamp(minValue: Double, maxValue: Double): Double = min(max(this, minValue), maxValue)
+abstract class Toggleable(private val _active: Boolean = false) {
+    open fun toggleOn() {}
+    open fun toggleOff() {}
+    var active: Boolean = false
+        set(v) = if (v) toggleOn() else toggleOff()
+    init { active = _active }
+    fun toggle() { active = !active }
+}
 
-enum class Direction {
-    FORWARD, BACKWARD;
+class CompressorToggle(val compressor: Compressor) : Toggleable() {
+    override fun toggleOn() = compressor.enableDigital()
+    override fun toggleOff() = compressor.disable()
+}
 
-    fun toggle(): Direction = when (this) {
-        FORWARD -> BACKWARD
-        BACKWARD -> FORWARD
+class IsForward : Toggleable() {
+    val sign: Double
+        get() = if (active) 1.0 else -1.0
+}
+
+class DirectionalMotor(val motor: CANSparkMax, val _forward: Boolean = true) : Toggleable() {
+    val isForward = IsForward()
+    var forward: Boolean = _forward
+        set(forward) { isForward.active = forward }
+
+    fun switchDirections() = isForward.toggle()
+    fun set(speed: Double) = motor.set(isForward.sign * speed)
+}
+
+enum class MessageType(val index: Int) {
+    FRAME_LIMELIGHT(0),
+    FRAME_USB_CAMERA(1),
+    SET_DRIVETRAIN(2),
+    SET_CLIMB(3),
+    SET_INTAKE(4),
+    SET_COLON(5),
+    SET_SHOOTER_TOP(6),
+    SET_SHOOTER_BOTTOM(7),
+    SET_COMPRESSOR(8),
+    SET_SOLENOID(9)
+}
+
+class Parser(val raw: ByteArray) {
+    var index = 0
+
+    fun readType(): MessageType = MessageType.values()[raw[index++].toInt()]
+
+    fun readFrame(): Mat {
+        val width = raw[index++].toInt() shl 8 or raw[index++].toInt()
+        val height = raw[index++].toInt() shl 8 or raw[index++].toInt()
+        val buffer = ByteBuffer.wrap(raw, 5, width * height) // Slice of byte buffer is moved to Mat
+        index += buffer.size
+        return Mat(width, height, 4, buffer) // 4 channels for RGBA
     }
 
-    fun sign(): Double = when (this) {
-        FORWARD -> 1.0
-        BACKWARD -> -1.0
+    fun readDouble(): Double {
+        val result = Double.fromBits((0..8).map { raw[index + it+1].toLong() shl 64-(index + it+1)*8 }.fold(0L) { it, acc -> it or acc })
+        index += 8
+        return result
+    }
+
+    fun readBoolean(): Boolean {
+        return raw[2] == 1.toByte()
+    }
+}
+
+fun ByteArray.toByteBuffer(): ByteBuffer = ByteBuffer.wrap(this, 0, this.size)
+
+object class Serializer {
+    fun serializeCameraFrame(camera: MessageType, frame: Mat): ByteArray {
+        val buffer = ByteArray(1 + frame.width() * frame.height() * 3)
+        buffer[0] = camera.ordinal.toByte()
+        var index = 0
+        for (x in 0..frame.width()) {
+            for (y in 0..frame.height()) {
+                val pixel = ByteArray(3)
+                frame.get(x, y, pixel)
+                buffer[1 + index] = pixel[0]
+                buffer[1 + index + 1] = pixel[1]
+                buffer[1 + index + 2] = pixel[2]
+                index += 3
+            }
+        }
+        return buffer
+    }
+
+    fun serializeSet(type: MessageType, value: Double): ByteArray {
+        val buffer = ByteArray(65)
+        buffer[0] = type.ordinal.toByte()
+        val bits = value.toBits()
+        for (i in 1..65)
+            buffer[i] = ((bits shr (64-i*8)) and 0xff).toByte()
+        return buffer
+    }
+
+    fun serializeSet(type: MessageType, value: Boolean): ByteArray {
+        return arrayOf(type.ordinal.toByte(), if (value) 1 else 0).toByteArray()
     }
 }
 
 class Robot : TimedRobot(Constants.PERIOD) {
-    val limelightTable = NetworkTableInstance.getDefault().getTable("limelight")
+    var ticks = 0
 
     val controller = XboxController(0)
-    val drive = Drivetrain(
-        Constants.Real.LEFT_MOTOR_1,
-        Constants.Real.LEFT_MOTOR_2,
-        Constants.Real.RIGHT_MOTOR_1,
-        Constants.Real.RIGHT_MOTOR_2
+    val drive = DriveSubsystem(
+        listOf(Constants.Real.LEFT_MOTOR_1, Constants.Real.LEFT_MOTOR_2),
+        listOf(Constants.Real.RIGHT_MOTOR_1, Constants.Real.RIGHT_MOTOR_2),
+        Pigeon2(Constants.Real.PIGEON)
     )
-    // val drive = DriveSubsystem(
-    //     listOf(
-    //         CANSparkMax(Constants.Real.LEFT_MOTOR_1, kBrushless),
-    //         CANSparkMax(Constants.Real.LEFT_MOTOR_2, kBrushless)
-    //     ),
-    //     listOf(
-    //         CANSparkMax(Constants.Real.RIGHT_MOTOR_1, kBrushless),
-    //         CANSparkMax(Constants.Real.RIGHT_MOTOR_2, kBrushless)
-    //     ),
-    //     // Pigeon2(Constants.Real.PIGEON)
-    // )
+    var speed = 0.0
+    var turn = 0.0
 
-    // var writer = CSVWriter(FileWriter(Constants.Real.CSV_PATH, true); 
-    // var writer = FileWriter(Filesystem.getDeployDirectory().toPath().resolve(Constants.Real.CSV_PATH).toString())
-    var topSpeed = 0.0
-    var bottomSpeed = 0.0
+    val intake = DirectionalMotor(brushlessMotor(Constants.Real.INTAKE))
+    var intakeSpeed = 0.0
 
+    val colon = brushlessMotor(Constants.Real.COLON)
+    var colonSpeed = 0.0
+
+    val climb = DirectionalMotor(brushlessMotor(Constants.Real.CLIMB))
+    var climbSpeed = 0.0
+
+    // Shooting
+    val limelightTable = NetworkTableInstance.getDefault().getTable("limelight")
+    val shooterTop = brushlessMotor(Constants.Real.SHOOTER_TOP)
+    val shooterBottom = brushlessMotor(Constants.Real.SHOOTER_BOTTOM)
+    var shooterTopSpeed = 0.0
+    var shooterBottomSpeed = 0.0
+    val turntable = brushlessMotor(Constants.Real.TURNTABLE)
+    var turntableSpeed = 0.0
+    var centering = false
+
+    // Pneumatics
+    val solenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, Constants.Real.LEFT_SOLENOID_1, Constants.Real.LEFT_SOLENOID_2)
+    var solenoidForward: Boolean? = null
+    val compressor = CompressorToggle(Compressor(0, PneumaticsModuleType.CTREPCM))
+
+    // Camera
+    val cvSink = CameraServer.getVideo()
+    val currentFrame = Mat()
+
+    var connections = ConcurrentHashMap<String, WsContext>()
     var app = Javalin.create().apply {
-        ws("/shooter") { ws -> 
+        ws("/control") { ws -> 
             ws.onConnect { ctx -> 
-                println("New websocket connected: $ctx")
+                connections[ctx.sessionId] = ctx
+                println("New websocket connected: ${ctx.sessionId}")
             }
             ws.onClose { ctx -> 
-                println("Websocket closed: $ctx")
+                connections.remove(ctx.sessionId)
+                println("Websocket closed: ${ctx.sessionId}")
             }
             ws.onMessage { ctx -> 
-                try {
-                    val _bottomSpeed = ctx.message().substringBefore(',').toDouble()
-                    val _topSpeed = ctx.message().substringAfter(',').toDouble()
-                    bottomSpeed = _bottomSpeed
-                    topSpeed = _topSpeed
-                    ctx.session.remote.sendString("CONFIG_UPDATED")
-                    println("Received message from websocket: '${ctx.message()}', bottom speed: $bottomSpeed, top speed: $topSpeed")
-                } catch (err: Exception) {
-                    println("Malformed ws input: ${err.message}, error: ${err.message}") 
+                val msg = ctx.message().toByteArray()
+                val parser = Parser(msg)
+                when (parser.readType()) {
+                    MessageType.FRAME_LIMELIGHT, MessageType.FRAME_USB_CAMERA -> {} // Only used for sending from server to client
+                    MessageType.SET_DRIVETRAIN -> {
+                        speed = parser.readDouble()
+                        turn = parser.readDouble()
+                    }
+                    MessageType.SET_CLIMB -> climbSpeed = parser.readDouble()
+                    MessageType.SET_INTAKE -> intakeSpeed = parser.readDouble()
+                    MessageType.SET_COLON -> colonSpeed = parser.readDouble()
+                    MessageType.SET_SHOOTER_TOP -> shooterTopSpeed = parser.readDouble()
+                    MessageType.SET_SHOOTER_BOTTOM -> shooterBottomSpeed = parser.readDouble()
+                    MessageType.SET_COMPRESSOR -> compressor.active = parser.readBoolean()
+                    MessageType.SET_SOLENOID -> solenoidForward = parser.readBoolean()
                 }
             }
         }
     }.start(7070)
 
-    val intake = brushlessMotor(Constants.Real.INTAKE)
-    var intakeDirection = Direction.FORWARD
-
-    val colon = brushlessMotor(Constants.Real.COLON)
-
-    val climb = brushlessMotor(Constants.Real.CLIMB)
-    var climbDirection = Direction.FORWARD
-
-    val shooterTop = brushlessMotor(Constants.Real.SHOOTER_TOP)
-    val shooterBottom = brushlessMotor(Constants.Real.SHOOTER_BOTTOM)
-
-    val turntable = brushlessMotor(Constants.Real.TURNTABLE)
-
-    var centering = false
-    val xButtonLastPressed = false
-    var ratio: Double = Constants.Real.SHOOTER_BOTTOM_GEAR_RATIO 
-    val scheduler = Scheduler()
-    val leftSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, Constants.Real.LEFT_SOLENOID_1, Constants.Real.LEFT_SOLENOID_2);
-    var topSpeedSlider: NetworkTableEntry? = null;
-    var bottomSpeedSlider: NetworkTableEntry? = null;
-    var saveButton: NetworkTableEntry? = null;
-
-    val trajectoryJSON = "resources/paths/topBlue.wpilib.json"
-    var trajectory = Trajectory()
-
-    var speedConfigMode = false
-
-    val pcmCompressor = Compressor(0, PneumaticsModuleType.CTREPCM)
-
-    var ticks = 0;
-
-    val pigeon = Pigeon2(Constants.Real.PIGEON)
-
     override fun robotInit() {
-        pcmCompressor.disable()
-
-        val tab = Shuffleboard.getTab("Test");
-        topSpeedSlider = tab.add("topSpeed", 1).withWidget(BuiltInWidgets.kNumberSlider).getEntry();
-        bottomSpeedSlider = tab.add("bottomSpeed", 2).withWidget(BuiltInWidgets.kNumberSlider).getEntry();
-        saveButton = tab.add("Save Speed", 3).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
+        compressor.active = false
+    }
+    override fun robotPeriodic() {
+        ticks++
+        cvSink.grabFrame(currentFrame)
+        connections.values.forEach { it.send(Serializer.serializeCameraFrame(MessageType.FRAME_LIMELIGHT, currentFrame).toByteBuffer()) }
     }
 
-    var compressorOn = false
-    var turnTableRotations = 0.0
-
-    var acceleration = 0.0
-    var speed = 0.0
-
-    var direction = Vec2(0.0, 0.0)
-    var position = Vec2(0.0, 0.0)
-    var lastEncoderPosition = 0.0
-
-    override fun teleopInit() {
-        intake.set(1.0)
-    }
+    override fun teleopInit() {}
 
     override fun teleopPeriodic() {
-        turnTableRotations = turntable.encoder.position
-        
-        acceleration = controller.leftX.pow(3.0) * 0.01
-        if (acceleration.absoluteValue < 0.01) {
-            speed -= speed/30.0
-        } else {
-            speed += acceleration
-        }
+        drive.arcadeDrive(speed, turn)
 
-        // val speed = controller.leftX.pow(3.0)
-        val turn = controller.leftY.pow(3.0)
-        drive.drive(speed, -turn)
+        climb.set(climbSpeed)
 
-        if(ticks > 100){
-            intake.set(0.0)
-        }
+        intake.set(intakeSpeed)
 
-        val yaw = Math.toRadians(pigeon.yaw)
-        direction = Vec2(Math.acos(yaw), Math.asin(yaw))
-        val encoderPosition = (drive.left.encoder.position + drive.right.encoder.position)/2
-        val displacement = encoderPosition - lastEncoderPosition
-        lastEncoderPosition = encoderPosition
-        position = displacement * direction
+        shooterTop.set(-shooterBottomSpeed)
+        shooterBottom.set(-shooterTopSpeed)
 
-        if (ticks % 100 == 0)
-            println("Position: $position, direction: $direction, yaw: ${pigeon.yaw}, $yaw")
-        
+        turntable.set(turntableSpeed)
 
-        val climbSpeed = controller.leftTriggerAxis.pow(3.0)
-        if (controller.rightStickButtonPressed) climbDirection = climbDirection.toggle()
-        climb.set(climbDirection.sign() * climbSpeed)
+        colon.set(colonSpeed)
 
-        // Right trigger controls intake speed, A button to reverse
-        val intakeSpeed = controller.rightTriggerAxis.pow(3.0)
-        if (controller.aButtonPressed) intakeDirection = intakeDirection.toggle()
-        intake.set(intakeDirection.sign() * intakeSpeed)
-
-        shooterTop.set(-bottomSpeed)
-        shooterBottom.set(-topSpeed)
-
-        // Right x axis for turntable
-        turntable.set(controller.rightX.deadzoneOne(0.05))
-
-        // Left bumper to spin colon upwards, right for down
-        if (controller.rightTriggerAxis > 0.05 && leftSolenoid.get() == kForward) {
-            colon.set(-0.7)
-        } else {
-            colon.set(0.0)
-        }
-        if (controller.yButtonPressed) {
-            compressorOn = !compressorOn
-            if (compressorOn)
-                pcmCompressor.enableDigital()
-            else
-                pcmCompressor.disable()
-        }
-        
         if (controller.xButtonPressed) {
-            leftSolenoid.set(when (leftSolenoid.get()) {
-                DoubleSolenoid.Value.kOff, null -> DoubleSolenoid.Value.kForward
-                DoubleSolenoid.Value.kForward -> DoubleSolenoid.Value.kReverse
-                DoubleSolenoid.Value.kReverse -> DoubleSolenoid.Value.kForward
+            solenoid.set(when (solenoidForward) {
+                null -> DoubleSolenoid.Value.kOff
+                false -> DoubleSolenoid.Value.kReverse
+                true -> DoubleSolenoid.Value.kForward
             })
         }
 
         if (controller.bButtonPressed)
             centering = !centering
 
-        ticks++
-        
         if (centering) {
             val tv = limelightTable.getEntry("tv").getDouble(0.0)
             val tx = limelightTable.getEntry("tx").getDouble(0.0)
             
             if (tv == 1.0) {
-                val turntableTurn = tv * (tx / 29.8 * 0.5).let { it.deadzoneOne(0.01) }
+                val turntableTurn = tv * (tx / 29.8 * 0.5)
                 turntable.set(turntableTurn)
             } else {
-                // TODO: Naive radar sweep around 210 deg range if target not found 
-                val turntableSpeed = (turntable.encoder.position / 60.0).clamp(-0.4, 0.4)
-                // Turn clockwise for 50 ticks then counterclockwise for 50 ticks
-                if (Math.abs(turnTableRotations) > 0){
-                    
-                }
-                if (Math.abs(turnTableRotations) < 0){
-                    
-                }
-                if ((ticks % 100) > 50)
-                    turntable.set(0.1)
-                else
-                    turntable.set(-0.1)
+                turntable.set(0.0)
             }
         }
-
-        // topSpeed = topSpeedSlider!!.getDouble(0.0);
-        // bottomSpeed = bottomSpeedSlider!!.getDouble(0.0);
-
-        // // If save button pressed, write to CSV and reset to unpressed
-        // if (saveButton!!.getBoolean(false)) {
-        //     saveButton!!.forceSetBoolean(false)
-        //     // writer.write("$topSpeed,$bottomSpeed")
-        //     // writer.flush()
-        // }
     }
 
-    var solenoidMode = kForward;
-
-    override fun testInit() {
-    }
-    override fun testPeriodic() {
-        if (controller.leftBumperPressed) {
-            solenoidMode = when (solenoidMode) {
-                kForward -> kReverse
-                else -> kForward
-            }
-            leftSolenoid.set(solenoidMode)
-        } else if (controller.rightBumperPressed) {
-            leftSolenoid.set(kOff)
-        }
-        if (controller.aButtonPressed) {
-            pcmCompressor.enableDigital()
-        } else if (controller.bButtonPressed) {
-            pcmCompressor.disable()
-        }
-        println("Left solenoid: ${leftSolenoid.get().name}")
-    }
+    override fun testInit() {}
+    override fun testPeriodic() {}
 
     override fun autonomousInit() {}
-    override fun autonomousPeriodic() {
-        if (ticks < 5000/Constants.PERIOD_MS)
-            drive.drive(-0.2, 0.0)
-        else
-            drive.drive(0.0, 0.0)
+    override fun autonomousPeriodic() {}
 
-        ticks++;
-    }
+    override fun disabledInit() {}
+    override fun disabledPeriodic() {}
 }

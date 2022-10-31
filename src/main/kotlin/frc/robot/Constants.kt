@@ -3,7 +3,7 @@ package frc.robot
 import kotlin.math.*
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics
 
-public object Constants { 
+public object Constants {
     val WHEEL_CIRCUMFERENCE_INCHES = PI * 7.0.pow(2.0)
 
     val TRACK_WIDTH_METERS = 0.69
@@ -14,13 +14,13 @@ public object Constants {
 
     val COMMAND_SCHEDULER_PERIOD_SECONDS = 20/1000
 
-    object Test {
+    public object Test {
         val LEFT_MOTOR = 6
         val RIGHT_MOTOR = 7
 
         val PIGEON = 10
 
-        object Auto {
+        public object Auto {
             val KS_VOLTS = 0.22
             val KV_VOLT_SECONDS_PER_METER = 0.22
             val KA_VOLT_SECONDS_SQUARED_PER_METER = 0.22
@@ -35,7 +35,7 @@ public object Constants {
         }
     }
 
-    object Real {
+    public object Real {
         // TODO: Solenoid ports
         val PCM = 0
 

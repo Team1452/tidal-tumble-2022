@@ -46,8 +46,8 @@ class TestRobot : TimedRobot(20.0/1000.0) {
     val controller = XboxController(0)
     // val drivetrain = Drivetrain(LEFT_MOTOR, RIGHT_MOTOR)
     val drive = DriveSubsystem(
-        listOf(brushlessMotor(Constants.Test.LEFT_MOTOR)),
-        listOf(brushlessMotor(Constants.Test.RIGHT_MOTOR)),
+        listOf(Constants.Test.LEFT_MOTOR),
+        listOf(Constants.Test.RIGHT_MOTOR),
         Pigeon2(Constants.Test.PIGEON)
     )
 

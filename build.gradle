@@ -65,9 +65,7 @@ dependencies {
     nativeRelease wpi.java.vendor.jniRelease(wpi.platforms.desktop)
     simulationRelease wpi.sim.enableRelease()
     
-
     implementation 'io.javalin:javalin:5.0.1'
-    implementation 'com.opencsv:opencsv:4.6'
 
     testImplementation 'junit:junit:4.12'
     testImplementation 'org.jetbrains.kotlin:kotlin-test'
