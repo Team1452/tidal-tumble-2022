@@ -4,7 +4,7 @@ import kotlin.math.*
 
 operator fun Double.times(o: Vec2) = o * this
 
-class Vec2(val x: Double, val y: Double) {
+class Vec2(val x: Double = 0.0, val y: Double = 0.0) {
     operator fun plus(o: Vec2): Vec2 = Vec2(x + o.x, y + o.y)
     operator fun minus(o: Vec2): Vec2 = Vec2(x - o.x, y - o.y)
     operator fun times(s: Double): Vec2 = Vec2(s * x, s * y)

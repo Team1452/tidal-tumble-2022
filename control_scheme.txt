@@ -9,9 +9,9 @@ rightTrigger: intake
 rightX: turntable
 rightTrigger: colon
 
-aButton: centering
+yButton: centering
 aButton: switch intak direction
-yButton: compressor
+bButton: compressor
 xButton: solenoid
 
 

@@ -31,6 +31,10 @@ import edu.wpi.first.math.controller.RamseteController
 import edu.wpi.first.math.controller.SimpleMotorFeedforward
 import edu.wpi.first.math.trajectory.TrajectoryUtil
 import edu.wpi.first.math.trajectory.Trajectory
+import edu.wpi.first.cameraserver.CameraServer
+import edu.wpi.first.cscore.MjpegServer
+import edu.wpi.first.cscore.CvSink
+import org.opencv.core.Mat
 
 import frc.robot.Drivetrain
 import frc.robot.Constants
@@ -80,12 +84,18 @@ class Robot : TimedRobot(Constants.PERIOD) {
     var topSpeed = 0.0
     var bottomSpeed = 0.0
 
+    var driveWeight = 0.09
+
+    // var connections = ConcurrentHashMap()
+
     var app = Javalin.create().apply {
         ws("/shooter") { ws -> 
             ws.onConnect { ctx -> 
+                // connections[ctx.sessionId] = ctx
                 println("New websocket connected: $ctx")
             }
             ws.onClose { ctx -> 
+                // connections.remove(ctx.sessionId)
                 println("Websocket closed: $ctx")
             }
             ws.onMessage { ctx -> 
@@ -121,7 +131,10 @@ class Robot : TimedRobot(Constants.PERIOD) {
     var ratio: Double = Constants.Real.SHOOTER_BOTTOM_GEAR_RATIO 
     val scheduler = Scheduler()
     val leftSolenoid = DoubleSolenoid(PneumaticsModuleType.CTREPCM, Constants.Real.LEFT_SOLENOID_1, Constants.Real.LEFT_SOLENOID_2);
+    var scalingModeBox: NetworkTableEntry? = null
+    var pcmCompressorBox: NetworkTableEntry? = null
     var topSpeedSlider: NetworkTableEntry? = null
+    //var shooterStats: NetworkTableEntry? = null
     var bottomSpeedSlider: NetworkTableEntry? = null
     var saveButton: NetworkTableEntry? = null
 
@@ -139,9 +152,16 @@ class Robot : TimedRobot(Constants.PERIOD) {
     override fun robotInit() {
         pcmCompressor.disable()
 
-        val tab = Shuffleboard.getTab("Main")
+        // Set to coast idle mode
+        drivetrain.left.idleMode = CANSparkMax.IdleMode.kBrake
+        drivetrain.right.idleMode = CANSparkMax.IdleMode.kBrake
+
+        val tab = Shuffleboard.getTab("Main (" + Math.random().toString().substringAfter('.') + ")")
         topSpeedSlider = tab.add("Top Shooter", 0.0).withWidget(BuiltInWidgets.kNumberSlider).getEntry()
         bottomSpeedSlider = tab.add("Bottom Shooter", 0.0).withWidget(BuiltInWidgets.kNumberSlider).getEntry()
+        pcmCompressorBox = tab.add("Compressor", false).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
+        scalingModeBox = tab.add("60% Scaling", false).withWidget(BuiltInWidgets.kBooleanBox).getEntry()
+        //shooterStats = tab.add("Shooter Status", 0.0).withWidget(BuiltInWidgets.kNumberSlider).getEntry()
     }
 
     var compressorOn = false
@@ -149,9 +169,11 @@ class Robot : TimedRobot(Constants.PERIOD) {
     var acceleration = 0.0
     var speed = 0.0
 
-    var direction = Vec2(0.0, 0.0)
-    var position = Vec2(0.0, 0.0)
+    var direction = Vec2()
+    var position = Vec2()
     var lastEncoderPosition = 0.0
+
+    var hubPosition = Vec2()
 
     var targetSpeed = 0.0
     var currentSpeed = 0.0
@@ -164,6 +186,8 @@ class Robot : TimedRobot(Constants.PERIOD) {
     fun smoothstep(a: Double, b: Double, t: Double): Double {
         return (2.0 * Math.pow(t, 3.0) - 3.0 * Math.pow(t, 2.0)).clamp(0.0, 1.0) * (b-a) + a
     }
+
+    fun mix(a: Double, b: Double, t: Double): Double = (1.0-t)*a+t*b
 
     override fun teleopInit() {
         intake.set(1.0)
@@ -184,41 +208,21 @@ class Robot : TimedRobot(Constants.PERIOD) {
         //     speed = controller.leftX.pow(3.0)
         // }
 
-        val newTargetSpeed = scaling * controller.leftY.pow(3.0)
+        targetSpeed = scaling * controller.leftY.pow(3.0)
+        currentSpeed = mix(currentSpeed, targetSpeed, driveWeight)
+        var turn = Math.pow(controller.leftX, 3.0) * 0.4
 
-        if (Math.abs(targetSpeed - newTargetSpeed) > 0.1) {
-            ticksSinceInterp = 0.0
-        }
-
-        targetSpeed = newTargetSpeed
-        val speed = smoothstep(currentSpeed, targetSpeed, ticksSinceInterp / 30.0)
-
-        ticksSinceInterp++
-
-        if (Math.abs(targetSpeed - speed) < 0.01) {
-            ticksSinceInterp = 0.0
-            currentSpeed = speed
-        }
-
-        // 2x^3 - 3x^2
-
-        val turn = scaling * controller.leftX.pow(3.0)
-
-        drivetrain.drive(speed, turn)
-
-        if (ticks > 100) {
-            intake.set(0.0)
-        }
+        drivetrain.drive(currentSpeed, turn)
 
         val yaw = Math.toRadians(pigeon.yaw)
         direction = Vec2(Math.acos(yaw), Math.asin(yaw))
         val encoderPosition = (drivetrain.left.encoder.position + drivetrain.right.encoder.position)/2
-        val displacement = encoderPosition - lastEncoderPosition
+        val displacement = (encoderPosition - lastEncoderPosition) * Constants.Real.DRIVETRAIN_GEAR_RATIO * Constants.WHEEL_CIRCUMFERENCE_INCHES
         lastEncoderPosition = encoderPosition
         position = displacement * direction
 
-        if (ticks % 100 == 0)
-            println("Position: $position, direction: $direction, yaw: ${pigeon.yaw}, $yaw")
+        // if (ticks % 100 == 0)
+        //     println("Position: $position, direction: $direction, yaw: ${pigeon.yaw}, $yaw")
         
         val climbSpeed = scaling * controller.leftTriggerAxis.pow(3.0)
         if (controller.rightStickButtonPressed) climbDirection = climbDirection.toggle()
@@ -229,8 +233,8 @@ class Robot : TimedRobot(Constants.PERIOD) {
         if (controller.aButtonPressed) intakeDirection = intakeDirection.toggle()
         intake.set(intakeDirection.sign() * intakeSpeed)
 
-        shooterTop.set(-bottomSpeed)
-        shooterBottom.set(-topSpeed)
+        shooterTop.set(topSpeedSlider!!.getDouble(0.5).let { if (Math.abs(it) < 0.1) 0.0 else it })
+        shooterBottom.set(bottomSpeedSlider!!.getDouble(0.5).let { if (Math.abs(it) < 0.1) 0.0 else it })
 
         // shooterTop.set(-topSpeedSlider!!.getDouble(0.0))
         // shooterBottom.set(-topSpeedSlider!!.getDouble(0.0))
@@ -238,12 +242,16 @@ class Robot : TimedRobot(Constants.PERIOD) {
         // Right x axis for turntable
         turntable.set(controller.rightX.deadzoneOne(0.05))
 
-        if (controller.rightTriggerAxis > 0.05 && leftSolenoid.get() == kForward) {
-            colon.set(-0.7)
+        if (controller.rightTriggerAxis > 0.05 && leftSolenoid.get() != kReverse) {
+            colon.set(intakeDirection.sign() * -1.0)
         } else {
             colon.set(0.0)
         }
-        if (controller.yButtonPressed) {
+
+        pcmCompressorBox!!.forceSetValue(compressorOn)
+        scalingModeBox!!.forceSetValue(fineModeOn)
+
+        if (controller.bButtonPressed) {
             compressorOn = !compressorOn
             if (compressorOn)
                 pcmCompressor.enableDigital()
@@ -261,13 +269,26 @@ class Robot : TimedRobot(Constants.PERIOD) {
 
         if (controller.rightBumperPressed) {
             fineModeOn = !fineModeOn
-            scaling = if (fineModeOn) 0.25 else 1.0
         }
 
-        if (controller.bButtonPressed)
+        if (controller.yButtonPressed)
             centering = !centering
 
         ticks++
+
+        if (controller.rightBumperPressed) {
+            val distance = (hubPosition - position).norm()
+        }
+
+        val LIMELIGHT_ANGLE_DEG = 27
+        val LIMELIGHT_HEIGHT_INCHES = 37.5
+        val GOAL_HEIGHT_INCHES = 103
+
+        val ty = limelightTable.getEntry("ty").getDouble(0.0)
+        val h = GOAL_HEIGHT_INCHES - LIMELIGHT_HEIGHT_INCHES
+        val d = h/tan(Math.toRadians(LIMELIGHT_ANGLE_DEG + ty))
+
+        println("Distance from Limelight: $d inches")
         
         if (centering) {
             val tv = limelightTable.getEntry("tv").getDouble(0.0)
@@ -326,12 +347,20 @@ class Robot : TimedRobot(Constants.PERIOD) {
         println("Left solenoid: ${leftSolenoid.get().name}")
     }
 
-    override fun autonomousInit() {}
+    override fun autonomousInit() {
+        ticks = 0
+        val yaw = Math.toRadians(pigeon.yaw)
+        direction = Vec2(Math.acos(yaw), Math.asin(yaw))
+        // Have robot touching wall of hub, add length from wall to center of HUB
+        hubPosition = direction * ((Constants.Real.LENGTH_INCHES/2.0) + 5.0)
+    }
     override fun autonomousPeriodic() {
-        if (ticks < 5000/Constants.PERIOD_MS)
-            drivetrain.drive(0.0, -0.2)
-        else
+        if (ticks < 5000/Constants.PERIOD_MS) {
+            drivetrain.drive(-0.2, 0.0)
+            intake.set(0.5)
+        } else {
             drivetrain.drive(0.0, 0.0)
+        }
 
         ticks++
     }

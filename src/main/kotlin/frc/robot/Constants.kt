@@ -52,6 +52,10 @@ public object Constants {
         val LEFT_MOTOR_1 = 15
         val LEFT_MOTOR_2 = 12
 
+        val DRIVETRAIN_GEAR_RATIO = 1.0 / 5.0
+
+        val LENGTH_INCHES = 38.0
+
         val PIGEON = 10
         val INTAKE = 20
         val COLON = 14

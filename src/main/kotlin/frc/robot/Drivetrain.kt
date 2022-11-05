@@ -26,7 +26,7 @@ class Drivetrain(val leftPort: Int, val left2Port: Int?, val rightPort: Int, val
     }
 
     fun drive(speed: Double, turn: Double) {
-        driveLeft(speed + turn)
-        driveRight(-(speed - turn)) // Invert right
+        driveLeft(-speed + turn)
+        driveRight(-(-speed - turn)) // Invert right
     }
 }
