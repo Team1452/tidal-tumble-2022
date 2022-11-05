@@ -1,9 +1,13 @@
 plugins {
-    id "cpp"
-    id "google-test-test-suite"
-    id "edu.wpi.first.GradleRIO" version "2022.3.1"
+    id "java"
+    id "org.jetbrains.kotlin.jvm" version "1.7.20"
+    id "edu.wpi.first.GradleRIO" version "2022.4.1"
 }
 
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
+def ROBOT_MAIN_CLASS = "frc.robot.MainKt"
 // Define my targets (RoboRIO) and artifacts (deployable files)
 // This is added by GradleRIO's backing project DeployUtils.
 deploy {
@@ -20,7 +24,7 @@ deploy {
                 // First part is artifact name, 2nd is artifact type
                 // getTargetTypeClass is a shortcut to get the class type using a string
 
-                frcCpp(getArtifactTypeClass('FRCNativeArtifact')) {
+                frcJava(getArtifactTypeClass('FRCJavaArtifact')) {
                 }
 
                 // Static files artifact
@@ -33,67 +37,68 @@ deploy {
     }
 }
 
-def deployArtifact = deploy.targets.roborio.artifacts.frcCpp
+def deployArtifact = deploy.targets.roborio.artifacts.frcJava
+
+// Set to true to use debug for JNI.
+wpi.java.debugJni = false
 
 // Set this to true to enable desktop support.
-def includeDesktopSupport = true
+def includeDesktopSupport = false
 
-// Set to true to run simulation in debug mode
-wpi.cpp.debugSimulation = false
+// Defining my dependencies. In this case, WPILib (+ friends), and vendor libraries.
+// Also defines JUnit 4.
+dependencies {
+    implementation wpi.java.deps.wpilib()
+    implementation wpi.java.vendor.java()
 
-// Default enable simgui
+    roborioDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.roborio)
+    roborioDebug wpi.java.vendor.jniDebug(wpi.platforms.roborio)
+
+    roborioRelease wpi.java.deps.wpilibJniRelease(wpi.platforms.roborio)
+    roborioRelease wpi.java.vendor.jniRelease(wpi.platforms.roborio)
+
+    nativeDebug wpi.java.deps.wpilibJniDebug(wpi.platforms.desktop)
+    nativeDebug wpi.java.vendor.jniDebug(wpi.platforms.desktop)
+    simulationDebug wpi.sim.enableDebug()
+
+    nativeRelease wpi.java.deps.wpilibJniRelease(wpi.platforms.desktop)
+    nativeRelease wpi.java.vendor.jniRelease(wpi.platforms.desktop)
+    simulationRelease wpi.sim.enableRelease()
+    
+
+    implementation 'io.javalin:javalin:5.0.1'
+    implementation 'com.opencsv:opencsv:4.6'
+
+    testImplementation 'junit:junit:4.12'
+    testImplementation 'org.jetbrains.kotlin:kotlin-test'
+}
+
+// Simulation configuration (e.g. environment variables).
 wpi.sim.addGui().defaultEnabled = true
-// Enable DS but not by default
 wpi.sim.addDriverstation()
 
-model {
-    components {
-        frcUserProgram(NativeExecutableSpec) {
-            targetPlatform wpi.platforms.roborio
-            if (includeDesktopSupport) {
-                targetPlatform wpi.platforms.desktop
-            }
+// Setting up my Jar File. In this case, adding all libraries into the main jar ('fat jar')
+// in order to make them all available at runtime. Also adding the manifest so WPILib
+// knows where to look for our Robot Class.
+jar {
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    manifest edu.wpi.first.gradlerio.GradleRIOPlugin.javaManifest(ROBOT_MAIN_CLASS)
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
 
-            sources.cpp {
-                source {
-                    srcDir 'src/main/cpp'
-                    include '**/*.cpp', '**/*.cc'
-                }
-                exportedHeaders {
-                    srcDir 'src/main/include'
-                }
-            }
-
-            // Set deploy task to deploy this component
-            deployArtifact.component = it
-
-            // Enable run tasks for this component
-            wpi.cpp.enableExternalTasks(it)
-
-            // Enable simulation for this component
-            wpi.sim.enable(it)
-            // Defining my dependencies. In this case, WPILib (+ friends), and vendor libraries.
-            wpi.cpp.vendor.cpp(it)
-            wpi.cpp.deps.wpilib(it)
-        }
-    }
-    testSuites {
-        frcUserProgramTest(GoogleTestTestSuiteSpec) {
-            testing $.components.frcUserProgram
-
-            sources.cpp {
-                source {
-                    srcDir 'src/test/cpp'
-                    include '**/*.cpp'
-                }
-            }
-
-            // Enable run tasks for this component
-            wpi.cpp.enableExternalTasks(it)
-
-            wpi.cpp.vendor.cpp(it)
-            wpi.cpp.deps.wpilib(it)
-            wpi.cpp.deps.googleTest(it)
-        }
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = "11"
     }
 }
+
+compileTestKotlin {
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+}
+
+// Configure jar and deploy tasks
+deployArtifact.jarTask = jar
+wpi.java.configureExecutableTasks(jar)
+wpi.java.configureTestTasks(test)

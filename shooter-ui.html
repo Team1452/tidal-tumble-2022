@@ -1,0 +1,72 @@
+<div style="display: flex; width: 100vw; height: 100vh; flex-direction: column; justify-content: center; align-items: center; height: 100vh;">
+    <style>
+        @keyframes anim {
+            0% { background: #f00; transform: rotate(0deg); }
+            20% { background: #0f0; }
+            40% { background: #00f; transform: rotate(-10deg); }
+            60% { background: #abf; }
+            80% { background: #23f; }
+            100% { background: #854; transform: rotate(10deg); }
+        }
+
+        body {
+            overflow: hidden;
+            /* animation: anim 5s infinite linear; */
+        }
+     </style>
+ 
+    <h1>Robot Shooter</h1>
+    <div>
+        <div>
+            <span>Bottom Speed</span> 
+            <input id="bottom-speed-input" value="0" />
+        </div>
+        <div>
+            <span>Upper Speed</span> 
+            <input id="upper-speed-input" value="0" />
+        </div>
+        <button id="configure-btn">Configure</button>
+    </div>
+</div>
+
+<script>
+const socket = new WebSocket('ws://10.14.52.2:7070/shooter');
+
+const upper = document.getElementById('upper-speed-input')
+const bottom = document.getElementById('bottom-speed-input')
+const configureBtn = document.getElementById('configure-btn')
+const intakeSpeed = document.getElementById('intake-speed-input')
+const pressure = document.getElementById('pressure-input')
+
+function configure() {
+    console.log(`sending new config: ${bottom.value},${upper.value}`)
+    socket.send(`${bottom.value},${upper.value}`)
+}
+
+configureBtn.onclick = () => {
+    configure()
+}
+
+upper.onchange = () => {
+    configure()
+}
+
+bottom.onchange = () => {
+    configure()
+}
+
+// socket.addEventListener('close', event => {
+//     console.log('Socket close')
+// })
+
+// socket.addEventListener('open', event => {
+//     console.log('connected to socket')
+// })
+
+socket.addEventListener('message', event => {
+    console.log('Message from socket:', event.data)
+    if (event.data == 'CONFIG_UPDATED') {
+        alert('Updated config')
+    }
+})
+</script>
