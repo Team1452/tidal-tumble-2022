@@ -54,7 +54,7 @@ public object Constants {
         val LEFT_MOTOR_1 = 15
         val LEFT_MOTOR_2 = 12
 
-        // val PIGEON = 10
+        val PIGEON = 10
         val INTAKE = 20
         val COLON = 14
         val CLIMB = 17

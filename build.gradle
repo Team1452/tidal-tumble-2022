@@ -65,10 +65,6 @@ dependencies {
     nativeRelease wpi.java.vendor.jniRelease(wpi.platforms.desktop)
     simulationRelease wpi.sim.enableRelease()
     
-
-    implementation 'io.javalin:javalin:5.0.1'
-    implementation 'com.opencsv:opencsv:4.6'
-
     testImplementation 'junit:junit:4.12'
     testImplementation 'org.jetbrains.kotlin:kotlin-test'
 }
@@ -96,6 +92,24 @@ compileTestKotlin {
     kotlinOptions {
         jvmTarget = "11"
     }
+}
+
+sourceSets {
+    main {
+        kotlin {
+            srcDirs =['src/main/kotlin']
+        }
+    }
+    test {
+        kotlin {
+            srcDirs =['src/test/kotlin']
+        }
+    }
+}
+
+javadoc {
+    source = sourceSets.main.kotlin
+    classpath = configurations.runtimeClasspath
 }
 
 // Configure jar and deploy tasks
