@@ -39,6 +39,20 @@ public object Constants {
     }
 
     object Real {
+        object Auto {
+            val KS_VOLTS = -0.19938
+            val KV_VOLT_SECONDS_PER_METER = 0.22
+            val KA_VOLT_SECONDS_SQUARED_PER_METER = 3.8271
+
+            val P_DRIVE_VEL = 8.5
+
+            val MAX_SPEED_METERS_PER_SECOND = 3.0
+            val MAX_ACCELERATION_METERS_PER_SECOND = 1.0
+
+            val RAMSETE_B = 2.0
+            val RAMSETE_ZETA = 0.7
+        }
+
         // TODO: Solenoid ports
         val PCM = 0
         val LEFT_SOLENOID_1 = 4

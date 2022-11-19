@@ -53,8 +53,8 @@ class Robot : TimedRobot(Constants.PERIOD) {
     }
 
     override fun teleopPeriodic() {
-        val speed = controller.leftX.pow(3.0)
-        val turn = controller.leftY.pow(3.0)
+        val speed = -controller.leftY.pow(3.0)
+        val turn = controller.leftX.pow(3.0)
         drive.arcadeDrive(speed, turn)
     }
 
@@ -85,9 +85,18 @@ class Robot : TimedRobot(Constants.PERIOD) {
 
     override fun testPeriodic() {
     }
-
+    var sped = 0.0;
+    var s = 1.0;
+    var down = 0;
     override fun autonomousInit() {}
-    override fun autonomousPeriodic() {}
+    override fun autonomousPeriodic() {
+
+        drive.arcadeDrive(sped, 0.0)
+        if(sped>=1.0){
+            s = -1.0
+        }
+            sped = sped + (s*0.001)
+    }
 
     override fun disabledInit() {}
     override fun disabledPeriodic() {}
